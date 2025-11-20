@@ -1,0 +1,21 @@
+body {
+  margin: 0;
+  background: #eef2f5;
+}
+
+input, button {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+button {
+  cursor: pointer;
+  background: #4caf50;
+  color: #fff;
+  border: none;
+}
+
+button:disabled {
+  background: #a0a0a0;
+  cursor: not-allowed;
+}
