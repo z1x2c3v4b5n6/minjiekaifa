@@ -113,8 +113,9 @@ export default function ProfilePage() {
                   onChange={(e) => setForm({ ...form, default_scene: e.target.value })}
                   className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
                 >
+                  <option value="none">无声</option>
                   <option value="rain">雨声</option>
-                  <option value="forest">森林</option>
+                  <option value="sea">海边</option>
                   <option value="cafe">咖啡店</option>
                 </select>
               </div>

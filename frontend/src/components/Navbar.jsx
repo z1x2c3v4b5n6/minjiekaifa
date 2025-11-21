@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { ArrowRightOnRectangleIcon, LeafIcon } from '@heroicons/react/24/outline';
+import { ArrowRightOnRectangleIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { AuthContext } from '../App.jsx';
 
 export default function Navbar({ isAdmin, role, profile, onLogout }) {
@@ -10,7 +10,11 @@ export default function Navbar({ isAdmin, role, profile, onLogout }) {
   const navItems = React.useMemo(() => {
     const common = [
       { path: '/', label: '仪表盘' },
+      { path: '/mindful', label: '正念首页' },
       { path: '/tasks', label: '任务管理' },
+      { path: '/sleep', label: '睡眠' },
+      { path: '/meditation', label: '冥想' },
+      { path: '/sounds', label: '声音' },
       { path: '/garden', label: '花园' },
       { path: '/stats', label: '数据统计' },
       { path: '/profile', label: '个人中心' },
@@ -43,7 +47,7 @@ export default function Navbar({ isAdmin, role, profile, onLogout }) {
               isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-400' : 'bg-gradient-to-br from-emerald-500 to-sky-400'
             }`}
           >
-            <LeafIcon className="h-6 w-6" />
+            <SparklesIcon className="h-6 w-6" />
           </div>
           <div>
             <p className="text-lg font-semibold text-slate-900">TimeGarden 时光花园</p>

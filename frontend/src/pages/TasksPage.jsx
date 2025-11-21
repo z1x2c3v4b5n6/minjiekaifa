@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import dayjs from 'dayjs';
 import api from '../api.js';
 
 const statusOptions = [
@@ -86,6 +85,15 @@ export default function TasksPage() {
     }
   };
 
+  const formatDeadline = (date) => {
+    if (!date) return '无';
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return '无';
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${month}-${day}`;
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -125,7 +133,7 @@ export default function TasksPage() {
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
                       分类：{task.category || '未分类'} · 状态：{task.status} · 截止：
-                      {task.deadline ? dayjs(task.deadline).format('MM-DD') : '无'} · 预计番茄：{task.estimated_pomodoros || '-'}
+                      {formatDeadline(task.deadline)} · 预计番茄：{task.estimated_pomodoros || '-'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
