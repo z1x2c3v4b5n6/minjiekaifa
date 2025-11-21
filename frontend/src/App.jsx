@@ -5,9 +5,14 @@ import Dashboard from './pages/Dashboard.jsx';
 import FocusPage from './pages/FocusPage.jsx';
 import GardenPage from './pages/GardenPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import MeditationPage from './pages/MeditationPage.jsx';
+import MindfulHome from './pages/MindfulHome.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import SleepDetailPage from './pages/SleepDetailPage.jsx';
+import SleepPage from './pages/SleepPage.jsx';
 import StatsPage from './pages/StatsPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
+import SoundsPage from './pages/SoundsPage.jsx';
 import AdminAnnouncements from './pages/AdminAnnouncements.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import api from './api.js';
@@ -103,7 +108,12 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedLayout isAdmin={isAdmin} onLogout={logout} />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/mindful" element={<MindfulHome />} />
           <Route path="/tasks" element={<TasksPage isAdmin={isAdmin} />} />
+          <Route path="/sleep" element={<SleepPage />} />
+          <Route path="/sleep/:id" element={<SleepDetailPage />} />
+          <Route path="/meditation" element={<MeditationPage />} />
+          <Route path="/sounds" element={<SoundsPage />} />
           <Route path="/focus" element={<FocusPage isAdmin={isAdmin} />} />
           <Route path="/garden" element={<GardenPage isAdmin={isAdmin} />} />
           <Route path="/stats" element={<StatsPage isAdmin={isAdmin} />} />

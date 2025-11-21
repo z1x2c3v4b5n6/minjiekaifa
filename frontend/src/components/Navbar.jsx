@@ -10,7 +10,11 @@ export default function Navbar({ isAdmin, role, profile, onLogout }) {
   const navItems = React.useMemo(() => {
     const common = [
       { path: '/', label: '仪表盘' },
+      { path: '/mindful', label: '正念首页' },
       { path: '/tasks', label: '任务管理' },
+      { path: '/sleep', label: '睡眠' },
+      { path: '/meditation', label: '冥想' },
+      { path: '/sounds', label: '声音' },
       { path: '/garden', label: '花园' },
       { path: '/stats', label: '数据统计' },
       { path: '/profile', label: '个人中心' },
