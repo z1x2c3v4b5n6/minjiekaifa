@@ -1,21 +1,256 @@
-body {
-  margin: 0;
-  background: #eef2f5;
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f4f6fb;
+  color: #1f2937;
 }
 
-input, button {
-  border: 1px solid #ddd;
-  border-radius: 4px;
+body {
+  margin: 0;
+  background: #f4f6fb;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: #1f2937;
+  color: #fff;
+}
+
+.navbar nav a {
+  color: #e5e7eb;
+  margin-right: 12px;
+  text-decoration: none;
+}
+
+.navbar .logo {
+  font-weight: 700;
+}
+
+.content {
+  padding: 16px 24px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.card + .card {
+  margin-top: 16px;
+}
+
+.card-header {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.form,
+.form-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.form-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+input,
+select,
+textarea,
+button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
 }
 
 button {
-  cursor: pointer;
-  background: #4caf50;
+  background: #2563eb;
   color: #fff;
+  cursor: pointer;
   border: none;
 }
 
-button:disabled {
-  background: #a0a0a0;
-  cursor: not-allowed;
+button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+button.danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+button.link-btn {
+  background: transparent;
+  color: #2563eb;
+  border: none;
+  cursor: pointer;
+}
+
+.grid.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  font-size: 12px;
+}
+
+.pill.today {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.center-card {
+  max-width: 360px;
+  margin: 60px auto;
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.success {
+  color: #16a34a;
+}
+
+.timer-display {
+  font-size: 48px;
+  font-weight: 800;
+  text-align: center;
+  margin: 12px 0;
+}
+
+.timer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.garden-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.garden-tile {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+
+.tile-icon {
+  font-size: 32px;
+}
+
+.bars {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  min-height: 200px;
+}
+
+.bar {
+  text-align: center;
+  flex: 1;
+}
+
+.bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #34d399, #10b981);
+  border-radius: 8px 8px 0 0;
+  min-height: 6px;
+}
+
+.bar-label {
+  display: block;
+  font-size: 12px;
+}
+
+.bar-value {
+  color: #111827;
+  font-size: 13px;
+}
+
+.mood-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.focus-page {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
