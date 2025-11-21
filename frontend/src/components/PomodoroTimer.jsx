@@ -1,105 +1,132 @@
-import { useEffect, useRef, useState } from 'react'
-import { sessionAPI } from '../api'
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid';
+import api from '../api.js';
 
-const audioSources = {
-  rain: 'https://cdn.pixabay.com/download/audio/2022/03/09/audio_24388bb9bd.mp3?filename=rain-ambient-110118.mp3',
-  sea: 'https://cdn.pixabay.com/download/audio/2022/03/16/audio_bf9f6c5a1a.mp3?filename=waves-ambient-113173.mp3',
-  cafe: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_9c3161e357.mp3?filename=coffee-shop-ambience-6100.mp3',
-}
-
-const PomodoroTimer = ({ defaultMinutes = 25, taskId = null, defaultScene = 'rain', onFinished }) => {
-  const [seconds, setSeconds] = useState(defaultMinutes * 60)
-  const [running, setRunning] = useState(false)
-  const [scene, setScene] = useState(defaultScene)
-  const timerRef = useRef(null)
-  const audioRef = useRef(null)
+export default function PomodoroTimer({ tasks = [], defaultMinutes = 25, onSessionLogged }) {
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [remaining, setRemaining] = useState(defaultMinutes * 60);
+  const [running, setRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    setSeconds(defaultMinutes * 60)
-  }, [defaultMinutes])
+    setRemaining(defaultMinutes * 60);
+  }, [defaultMinutes]);
 
   useEffect(() => {
-    if (!running) return
+    if (!running) return;
     timerRef.current = setInterval(() => {
-      setSeconds((s) => {
-        if (s <= 1) {
-          clearInterval(timerRef.current)
-          finish(true)
-          return 0
+      setRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          handleComplete();
+          return 0;
         }
-        return s - 1
-      })
-    }, 1000)
-    playAudio()
-    return () => clearInterval(timerRef.current)
-  }, [running])
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [running]);
 
-  const playAudio = () => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio(audioSources[scene])
-      audioRef.current.loop = true
-    }
-    audioRef.current.play().catch(() => {})
-  }
+  const minutes = useMemo(() => String(Math.floor(remaining / 60)).padStart(2, '0'), [remaining]);
+  const seconds = useMemo(() => String(remaining % 60).padStart(2, '0'), [remaining]);
 
-  const stopAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-    }
-  }
+  const handleStart = () => {
+    setRemaining(defaultMinutes * 60);
+    setIsPaused(false);
+    setRunning(true);
+  };
 
-  const start = () => {
-    setSeconds(defaultMinutes * 60)
-    setRunning(true)
-  }
+  const handlePause = () => {
+    setIsPaused(true);
+    setRunning(false);
+  };
 
-  const pause = () => {
-    setRunning(false)
-    clearInterval(timerRef.current)
-    stopAudio()
-  }
+  const handleStop = () => {
+    setRunning(false);
+    setIsPaused(false);
+    setRemaining(defaultMinutes * 60);
+  };
 
-  const finish = async (completed) => {
-    setRunning(false)
-    clearInterval(timerRef.current)
-    stopAudio()
-    await sessionAPI.create({
-      task: taskId,
+  const handleComplete = async () => {
+    setRunning(false);
+    setIsPaused(false);
+    const payload = {
+      task: selectedTask ? selectedTask.id : null,
       duration_minutes: defaultMinutes,
-      is_completed: completed,
-      interrupted_reason: completed ? '' : '用户中止',
-    })
-    setSeconds(defaultMinutes * 60)
-    onFinished && onFinished()
-  }
-
-  const minutesDisplay = String(Math.floor(seconds / 60)).padStart(2, '0')
-  const secondsDisplay = String(seconds % 60).padStart(2, '0')
+      is_completed: true,
+      interrupted_reason: '',
+    };
+    try {
+      await api.post('/sessions/', payload);
+      onSessionLogged?.();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRemaining(defaultMinutes * 60);
+    }
+  };
 
   return (
-    <div className="card">
-      <div className="card-header">番茄计时器</div>
-      <div className="timer-display">{minutesDisplay}:{secondsDisplay}</div>
-      <label>
-        环境音：
-        <select value={scene} onChange={(e) => setScene(e.target.value)}>
-          <option value="rain">雨声</option>
-          <option value="sea">海浪</option>
-          <option value="cafe">咖啡厅</option>
+    <div className="card p-6 gradient-ring">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm text-slate-500">番茄计时</p>
+          <p className="text-xl font-semibold text-slate-900">专注一下</p>
+        </div>
+        <select
+          className="text-sm rounded-full border border-slate-200 px-3 py-2 bg-white"
+          value={selectedTask?.id || ''}
+          onChange={(e) => {
+            const task = tasks.find((t) => String(t.id) === e.target.value);
+            setSelectedTask(task || null);
+          }}
+        >
+          <option value="">自由专注</option>
+          {tasks.map((task) => (
+            <option key={task.id} value={task.id}>
+              {task.title}
+            </option>
+          ))}
         </select>
-      </label>
-      <div className="timer-actions">
-        {!running && <button onClick={start}>开始</button>}
-        {running && <button className="secondary" onClick={pause}>暂停</button>}
-        {running && (
-          <button className="danger" onClick={() => finish(false)}>
-            中断
-          </button>
-        )}
+      </div>
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative h-52 w-52 rounded-full bg-white shadow-inner flex items-center justify-center border border-slate-100">
+          <div className="absolute inset-3 rounded-full bg-gradient-to-br from-emerald-50 to-sky-50" />
+          <div className="relative text-5xl font-bold text-slate-900">
+            {minutes}:{seconds}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {!running ? (
+            <button
+              onClick={handleStart}
+              className="px-5 py-3 rounded-full bg-emerald-500 text-white font-semibold shadow hover:bg-emerald-600 flex items-center gap-2"
+            >
+              <PlayIcon className="h-5 w-5" />
+              开始
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handlePause}
+                className="px-4 py-3 rounded-full bg-amber-500 text-white font-semibold shadow hover:bg-amber-600 flex items-center gap-2"
+              >
+                <PauseIcon className="h-5 w-5" />
+                暂停
+              </button>
+              <button
+                onClick={handleStop}
+                className="px-4 py-3 rounded-full bg-slate-200 text-slate-700 font-semibold shadow hover:bg-slate-300 flex items-center gap-2"
+              >
+                <StopIcon className="h-5 w-5" />
+                结束
+              </button>
+            </>
+          )}
+        </div>
+        {isPaused && <p className="text-xs text-amber-600">已暂停，点击结束重置或再次开始。</p>}
       </div>
     </div>
-  )
+  );
 }
-
-export default PomodoroTimer
