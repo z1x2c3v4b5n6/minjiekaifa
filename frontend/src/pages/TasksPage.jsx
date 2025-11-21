@@ -37,7 +37,8 @@ export default function TasksPage({ isAdmin }) {
   };
 
   const updateTask = async (taskId, patch) => {
-    await api.put(`/tasks/${taskId}/`, { ...patch });
+    // 使用 PATCH 仅提交需要变更的字段，避免 PUT 要求完整 payload 触发 400
+    await api.patch(`/tasks/${taskId}/`, { ...patch });
     fetchTasks();
   };
 
