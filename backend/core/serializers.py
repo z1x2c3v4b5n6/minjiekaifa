@@ -39,6 +39,8 @@ class TaskSerializer(serializers.ModelSerializer):
             "title",
             "category",
             "status",
+            "priority",
+            "deadline",
             "is_today",
             "estimated_pomodoros",
             "created_at",
@@ -55,6 +57,8 @@ class FocusSessionSerializer(serializers.ModelSerializer):
             "duration_minutes",
             "is_completed",
             "interrupted_reason",
+            "started_at",
+            "ended_at",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -66,6 +70,13 @@ class MoodRecordSerializer(serializers.ModelSerializer):
         fields = ["id", "date", "mood", "note"]
         read_only_fields = ["id"]
 
+    def validate_mood(self, value):
+        if value is None:
+            return value
+        if not 1 <= int(value) <= 5:
+            raise serializers.ValidationError("mood must be between 1 and 5")
+        return value
+
     def create(self, validated_data):
         user = validated_data.pop("user", None) or self.context["request"].user
         return MoodRecord.objects.update_or_create(
@@ -74,10 +85,11 @@ class MoodRecordSerializer(serializers.ModelSerializer):
 
 
 class GardenViewSerializer(serializers.Serializer):
+    stage = serializers.CharField()
+    level = serializers.IntegerField()
+    current_exp = serializers.IntegerField()
+    next_level_exp = serializers.IntegerField()
     total_pomodoros = serializers.IntegerField()
-    weekly_pomodoros = serializers.IntegerField()
-    category_stats = serializers.DictField(child=serializers.IntegerField())
-    level = serializers.CharField()
 
 
 class AnnouncementSerializer(serializers.ModelSerializer):

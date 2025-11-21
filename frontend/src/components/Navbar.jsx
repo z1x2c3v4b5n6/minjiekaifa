@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { ArrowRightOnRectangleIcon, LeafIcon } from '@heroicons/react/24/outline';
 import { AuthContext } from '../App.jsx';
 
 export default function Navbar({ isAdmin, role, profile, onLogout }) {
@@ -10,11 +10,11 @@ export default function Navbar({ isAdmin, role, profile, onLogout }) {
   const navItems = React.useMemo(() => {
     const common = [
       { path: '/', label: '仪表盘' },
-      { path: '/tasks', label: '任务' },
+      { path: '/tasks', label: '任务管理' },
       { path: '/garden', label: '花园' },
-      { path: '/stats', label: '统计' },
+      { path: '/stats', label: '数据统计' },
       { path: '/profile', label: '个人中心' },
-      { path: '/focus', label: '专注' },
+      { path: '/focus', label: '番茄专注' },
     ];
     if (role === 'admin') {
       return [
@@ -33,10 +33,18 @@ export default function Navbar({ isAdmin, role, profile, onLogout }) {
   };
 
   return (
-    <header className={`sticky top-0 z-20 backdrop-blur bg-white/90 border-b ${isAdmin ? 'border-purple-200' : 'border-emerald-100'} shadow-sm`}>
+    <header className={`sticky top-0 z-20 backdrop-blur bg-white/90 border-b shadow-sm ${
+      isAdmin ? 'border-purple-200' : 'border-emerald-100'
+    }`}>
       <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-3">
-          <div className={`h-10 w-10 rounded-xl ${isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-400' : 'bg-gradient-to-br from-emerald-400 to-sky-400'} shadow-md`} />
+        <Link to="/" className="flex items-center gap-3 group">
+          <div
+            className={`h-10 w-10 rounded-xl grid place-items-center text-white shadow-md ${
+              isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-400' : 'bg-gradient-to-br from-emerald-500 to-sky-400'
+            }`}
+          >
+            <LeafIcon className="h-6 w-6" />
+          </div>
           <div>
             <p className="text-lg font-semibold text-slate-900">TimeGarden 时光花园</p>
             <p className="text-xs text-slate-500">把时间种成一座小花园</p>

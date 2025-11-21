@@ -27,6 +27,7 @@ export default function LoginPage() {
           username: form.username,
           password: form.password,
           nickname: form.nickname,
+          role: 'user',
         });
       }
       const res = await api.post('/auth/login/', {
@@ -65,13 +66,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50 px-4">
-      <div className="card w-full max-w-4xl overflow-hidden grid md:grid-cols-5">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-sky-50 px-4">
+      <div className="card w-full max-w-5xl overflow-hidden grid md:grid-cols-5">
         <div className="md:col-span-2 bg-gradient-to-br from-emerald-400 to-sky-500 text-white p-8 flex flex-col justify-between">
-          <div>
+          <div className="space-y-4">
             <p className="text-sm uppercase tracking-[0.2em]">TimeGarden</p>
-            <h1 className="text-3xl font-bold mt-2">时光花园</h1>
-            <p className="text-white/80 mt-4 leading-relaxed">把时间种成一座花园，番茄是种子，专注是阳光，情绪是雨露。</p>
+            <h1 className="text-3xl font-bold">时光花园</h1>
+            <p className="text-white/90 leading-relaxed">专注每一刻，把时间种成小小花园。番茄是种子，专注是阳光。</p>
           </div>
           <div className="space-y-3">
             <p className="text-sm font-semibold">一键体验</p>
@@ -86,14 +87,17 @@ export default function LoginPage() {
                 onClick={() => quickAccess('admin')}
                 className="w-full bg-white/90 text-indigo-700 font-semibold rounded-xl px-4 py-3 hover:bg-white"
               >
-                管理员体验账号（界面强化）
+                管理员体验账号
               </button>
             </div>
           </div>
         </div>
-        <div className="md:col-span-3 p-8">
+        <div className="md:col-span-3 p-8 bg-white">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-slate-900">{mode === 'login' ? '登录' : '注册'}</h2>
+            <div>
+              <p className="text-sm text-slate-500">欢迎回来</p>
+              <h2 className="text-2xl font-semibold text-slate-900">{mode === 'login' ? '登录账户' : '创建账户'}</h2>
+            </div>
             <div className="bg-slate-100 rounded-full p-1 text-sm flex items-center">
               <button
                 onClick={() => setMode('login')}

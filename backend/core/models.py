@@ -40,6 +40,15 @@ class Task(models.Model):
     title = models.CharField(max_length=200)
     category = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="todo")
+    priority = models.CharField(
+        max_length=20,
+        choices=(
+            ("normal", "普通"),
+            ("important", "重要"),
+        ),
+        default="normal",
+    )
+    deadline = models.DateField(null=True, blank=True)
     is_today = models.BooleanField(default=False)
     estimated_pomodoros = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -56,6 +65,8 @@ class FocusSession(models.Model):
     duration_minutes = models.IntegerField()
     is_completed = models.BooleanField(default=True)
     interrupted_reason = models.CharField(max_length=200, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -67,7 +78,7 @@ class MoodRecord(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="moods")
     date = models.DateField(default=timezone.now)
-    mood = models.CharField(max_length=20)
+    mood = models.IntegerField()
     note = models.TextField(blank=True)
 
     class Meta:

@@ -101,12 +101,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         status_param = self.request.query_params.get("status")
         category = self.request.query_params.get("category")
         is_today = self.request.query_params.get("is_today")
+        filter_param = self.request.query_params.get("filter")
+
         if status_param:
             qs = qs.filter(status=status_param)
         if category:
             qs = qs.filter(category=category)
         if is_today:
             qs = qs.filter(is_today=is_today.lower() == "true")
+        if filter_param == "today":
+            qs = qs.filter(is_today=True)
+        if filter_param == "important":
+            qs = qs.filter(priority="important")
         return qs
 
     def perform_create(self, serializer):
@@ -140,7 +146,25 @@ class TodayStatsView(APIView):
         today_sessions = FocusSession.objects.filter(user=request.user, created_at__gte=start_of_day)
         total_minutes = today_sessions.aggregate(total=Sum("duration_minutes"))["total"] or 0
         total_pomos = today_sessions.count()
-        return Response({"today_minutes": total_minutes, "today_pomodoros": total_pomos})
+
+        # 计算连续专注天数
+        session_dates = set(
+            FocusSession.objects.filter(user=request.user)
+            .dates("created_at", "day", order="DESC")
+        )
+        streak_days = 0
+        current_day = now.date()
+        while current_day in session_dates:
+            streak_days += 1
+            current_day -= timedelta(days=1)
+
+        return Response(
+            {
+                "today_minutes": total_minutes,
+                "today_sessions": total_pomos,
+                "streak_days": streak_days,
+            }
+        )
 
 
 class OverviewStatsView(APIView):
@@ -148,23 +172,39 @@ class OverviewStatsView(APIView):
 
     def get(self, request):
         today = timezone.now().date()
-        start_date = today - timedelta(days=6)
+        days = int(request.query_params.get("days", 7))
+        start_date = today - timedelta(days=days - 1)
         sessions = FocusSession.objects.filter(user=request.user, created_at__date__gte=start_date)
+
+        daily_map = {start_date + timedelta(days=i): 0 for i in range(days)}
         daily = (
             sessions.annotate(day=models.functions.TruncDate("created_at"))
             .values("day")
             .annotate(total=Sum("duration_minutes"))
             .order_by("day")
         )
+        for item in daily:
+            daily_map[item["day"]] = item["total"]
+
         category_stats = (
             sessions.filter(task__isnull=False)
             .values("task__category")
             .annotate(total=Sum("duration_minutes"))
         )
+
+        total_tasks = Task.objects.filter(user=request.user).count()
+        completed_tasks = Task.objects.filter(user=request.user, status="done").count()
+        completion_rate = completed_tasks / total_tasks if total_tasks else 0
+
         return Response(
             {
-                "daily": list(daily),
+                "daily_minutes": [
+                    {"date": day.strftime("%m-%d"), "minutes": daily_map[day]} for day in sorted(daily_map.keys())
+                ],
                 "category_stats": {item["task__category"] or "未分类": item["total"] for item in category_stats},
+                "completion_rate": completion_rate,
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
             }
         )
 
@@ -207,23 +247,27 @@ class GardenOverviewView(APIView):
 
     def get(self, request):
         sessions = FocusSession.objects.filter(user=request.user)
-        total_pomodoros = sessions.count()
-        today = timezone.now().date()
-        start_week = today - timedelta(days=6)
-        weekly_pomodoros = sessions.filter(created_at__date__gte=start_week).count()
-        category_stats = (
-            sessions.filter(task__isnull=False)
-            .values("task__category")
-            .annotate(total=Sum("duration_minutes"))
-        )
-        total_minutes = sessions.aggregate(total=Sum("duration_minutes"))["total"] or 0
-        level = "种子" if total_minutes < 100 else "嫩芽" if total_minutes < 300 else "小树"
+        total_pomodoros = sessions.filter(is_completed=True).count()
+        exp_per_pomodoro = 10
+        current_exp = total_pomodoros * exp_per_pomodoro
+        level = current_exp // 200 + 1
+        next_level_exp = level * 200
+        if level < 2:
+            stage = "幼苗期"
+        elif level < 4:
+            stage = "成长期"
+        elif level < 6:
+            stage = "茂盛期"
+        else:
+            stage = "繁盛期"
+
         serializer = GardenViewSerializer(
             {
-                "total_pomodoros": total_pomodoros,
-                "weekly_pomodoros": weekly_pomodoros,
-                "category_stats": {c["task__category"] or "未分类": c["total"] for c in category_stats},
+                "stage": stage,
                 "level": level,
+                "current_exp": current_exp,
+                "next_level_exp": next_level_exp,
+                "total_pomodoros": total_pomodoros,
             }
         )
         return Response(serializer.data)

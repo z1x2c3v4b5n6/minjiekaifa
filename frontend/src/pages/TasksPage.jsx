@@ -1,205 +1,253 @@
 import React, { useEffect, useState } from 'react';
-import { AdjustmentsHorizontalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import dayjs from 'dayjs';
 import api from '../api.js';
 
 const statusOptions = [
-  { label: '全部', value: '' },
-  { label: '待办', value: 'todo' },
-  { label: '进行中', value: 'doing' },
-  { label: '完成', value: 'done' },
+  { value: 'todo', label: '待办' },
+  { value: 'doing', label: '进行中' },
+  { value: 'done', label: '已完成' },
 ];
 
-const categoryOptions = ['学习', '工作', '生活', '健康'];
+const priorityOptions = [
+  { value: 'normal', label: '普通' },
+  { value: 'important', label: '重要' },
+];
 
-export default function TasksPage({ isAdmin }) {
+export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
-  const [filters, setFilters] = useState({ status: '', category: '' });
-  const [form, setForm] = useState({ title: '', category: '', estimated_pomodoros: 1, status: 'todo' });
+  const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    category: '',
+    status: 'todo',
+    priority: 'normal',
+    deadline: '',
+    estimated_pomodoros: '',
+    is_today: false,
+  });
 
-  const fetchTasks = () => {
+  const fetchTasks = async (current = filter) => {
     setLoading(true);
-    api
-      .get('/tasks/', { params: { ...filters, is_today: undefined } })
-      .then((res) => setTasks(res.data))
-      .finally(() => setLoading(false));
+    try {
+      let query = '';
+      if (current === 'today') query = '?filter=today';
+      if (current === 'important') query = '?filter=important';
+      if (current === 'done') query = '?status=done';
+      const res = await api.get(`/tasks/${query}`);
+      setTasks(res.data);
+      setFilter(current);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchTasks();
-  }, [filters]);
+  }, []);
 
-  const createTask = async () => {
-    if (!form.title) return;
-    await api.post('/tasks/', form);
-    setForm({ title: '', category: '', estimated_pomodoros: 1, status: 'todo' });
-    fetchTasks();
+  const createTask = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        title: form.title,
+        category: form.category,
+        status: form.status,
+        priority: form.priority,
+        deadline: form.deadline || null,
+        estimated_pomodoros: form.estimated_pomodoros || null,
+        is_today: form.is_today,
+      };
+      await api.post('/tasks/', payload);
+      setForm({ title: '', category: '', status: 'todo', priority: 'normal', deadline: '', estimated_pomodoros: '', is_today: false });
+      fetchTasks(filter);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const updateTask = async (taskId, patch) => {
-    await api.put(`/tasks/${taskId}/`, { ...patch });
-    fetchTasks();
+  const updateTask = async (id, payload) => {
+    try {
+      await api.patch(`/tasks/${id}/`, payload);
+      fetchTasks(filter);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const deleteTask = async (taskId) => {
-    await api.delete(`/tasks/${taskId}/`);
-    fetchTasks();
-  };
-
-  const toggleToday = async (taskId) => {
-    await api.post(`/tasks/${taskId}/set_today/`);
-    fetchTasks();
+  const toggleToday = async (task) => {
+    try {
+      await api.post(`/tasks/${task.id}/set_today/`);
+      fetchTasks(filter);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-slate-500">任务管理</p>
-          <h1 className="text-3xl font-bold text-slate-900">规划与安排</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">规划你的专注清单</h1>
         </div>
-        <div className={`px-4 py-2 rounded-full text-sm font-semibold ${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
-          {isAdmin ? '管理员视角：任务面板强化展示' : '普通视角：轻量任务列表'}
-        </div>
-      </div>
-
-      <div className="card p-5 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-slate-600">
-            <AdjustmentsHorizontalIcon className="h-5 w-5" />
-            <span className="text-sm">筛选</span>
-          </div>
-          <select
-            className="rounded-full border border-slate-200 px-3 py-2 text-sm"
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-          >
-            {statusOptions.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="rounded-full border border-slate-200 px-3 py-2 text-sm"
-            value={filters.category}
-            onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-          >
-            <option value="">全部分类</option>
-            {categoryOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => setFilters({ status: '', category: '' })}
-            className="text-sm px-3 py-2 rounded-full bg-slate-100 text-slate-600"
-          >
-            重置
-          </button>
-        </div>
-
-        <div className="grid md:grid-cols-4 gap-3">
-          <input
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="任务标题"
-            className="rounded-xl border border-slate-200 px-3 py-2"
-          />
-          <select
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-            className="rounded-xl border border-slate-200 px-3 py-2"
-          >
-            <option value="">分类（可选）</option>
-            {categoryOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={form.estimated_pomodoros}
-            onChange={(e) => setForm({ ...form, estimated_pomodoros: Number(e.target.value) })}
-            className="rounded-xl border border-slate-200 px-3 py-2"
-            placeholder="预计番茄数"
-          />
-          <button
-            onClick={createTask}
-            className="rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 text-white font-semibold px-4 py-2 shadow"
-          >
-            添加任务
-          </button>
+        <div className="flex gap-2 text-sm bg-slate-100 rounded-full p-1">
+          {['all', 'today', 'important', 'done'].map((key) => (
+            <button
+              key={key}
+              onClick={() => fetchTasks(key)}
+              className={`px-3 py-1 rounded-full ${filter === key ? 'bg-white shadow text-emerald-700' : 'text-slate-600'}`}
+            >
+              {key === 'all' ? '全部' : key === 'today' ? '今日' : key === 'important' ? '重要' : '已完成'}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {loading ? (
-          <p className="text-slate-500">加载中...</p>
-        ) : tasks.length === 0 ? (
-          <p className="text-slate-500">暂无任务，先创建一个吧。</p>
-        ) : (
-          tasks.map((task) => (
-            <div key={task.id} className="card p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-lg font-semibold text-slate-900">{task.title}</p>
-                  <p className="text-xs text-slate-500">{task.category || '未分类'}</p>
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 card p-4">
+          <h3 className="text-lg font-semibold text-slate-900 mb-3">任务列表</h3>
+          <div className="divide-y divide-slate-100">
+            {loading ? (
+              <p className="text-sm text-slate-500 py-4 text-center">加载中...</p>
+            ) : tasks.length === 0 ? (
+              <p className="text-sm text-slate-500 py-4 text-center">暂无任务</p>
+            ) : (
+              tasks.map((task) => (
+                <div key={task.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900 flex items-center gap-2">
+                      {task.title}
+                      {task.priority === 'important' && <span className="px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-600">重要</span>}
+                      {task.is_today && <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700">今日</span>}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      分类：{task.category || '未分类'} · 状态：{task.status} · 截止：
+                      {task.deadline ? dayjs(task.deadline).format('MM-DD') : '无'} · 预计番茄：{task.estimated_pomodoros || '-'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <select
+                      value={task.status}
+                      onChange={(e) => updateTask(task.id, { status: e.target.value })}
+                      className="px-2 py-1 rounded border border-slate-200 text-sm"
+                    >
+                      {statusOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => updateTask(task.id, { priority: task.priority === 'important' ? 'normal' : 'important' })}
+                      className="px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    >
+                      {task.priority === 'important' ? '设为普通' : '设为重要'}
+                    </button>
+                    <button
+                      onClick={() => toggleToday(task)}
+                      className="px-3 py-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-600"
+                    >
+                      {task.is_today ? '移出今日' : '加入今日'}
+                    </button>
+                  </div>
                 </div>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  task.status === 'done'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : task.status === 'doing'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-slate-100 text-slate-700'
-                }`}>
-                  {task.status || 'todo'}
-                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="card p-4">
+          <h3 className="text-lg font-semibold text-slate-900 mb-3">新增任务</h3>
+          <form className="space-y-3" onSubmit={createTask}>
+            <div>
+              <label className="text-sm text-slate-600">标题</label>
+              <input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                required
+                className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                placeholder="例如：完成课程学习"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-slate-600">分类</label>
+                <input
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                  placeholder="学习 / 工作"
+                />
               </div>
-              <div className="text-sm text-slate-600 flex items-center gap-3">
-                <span className="bg-slate-100 px-3 py-1 rounded-full">预计 {task.estimated_pomodoros || 1} 🍅</span>
-                <button
-                  onClick={() => toggleToday(task.id)}
-                  className={`text-xs px-3 py-1 rounded-full border ${task.is_today ? 'border-emerald-400 text-emerald-600' : 'border-slate-200 text-slate-500'}`}
-                >
-                  {task.is_today ? '今日已选' : '加入今日'}
-                </button>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <button
-                  onClick={() => updateTask(task.id, { status: task.status === 'done' ? 'todo' : 'done' })}
-                  className="flex-1 bg-emerald-50 text-emerald-600 rounded-xl px-3 py-2"
-                >
-                  {task.status === 'done' ? '标记未完成' : '标记完成'}
-                </button>
-                <button
-                  onClick={() => updateTask(task.id, { status: 'doing' })}
-                  className="flex-1 bg-sky-50 text-sky-600 rounded-xl px-3 py-2"
-                >
-                  进行中
-                </button>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <button
-                  onClick={() => updateTask(task.id, { title: `${task.title}` })}
-                  className="flex items-center gap-1 text-slate-600 hover:text-slate-900"
-                >
-                  <PencilSquareIcon className="h-4 w-4" />
-                  编辑
-                </button>
-                <button
-                  onClick={() => deleteTask(task.id)}
-                  className="flex items-center gap-1 text-red-500 hover:text-red-600"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                  删除
-                </button>
+              <div>
+                <label className="text-sm text-slate-600">截止日期</label>
+                <input
+                  type="date"
+                  value={form.deadline}
+                  onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                />
               </div>
             </div>
-          ))
-        )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-slate-600">状态</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                >
+                  {statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-slate-600">优先级</label>
+                <select
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                >
+                  {priorityOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-slate-600">预计番茄数</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.estimated_pomodoros}
+                  onChange={(e) => setForm({ ...form, estimated_pomodoros: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-700 mt-6">
+                <input
+                  type="checkbox"
+                  checked={form.is_today}
+                  onChange={(e) => setForm({ ...form, is_today: e.target.checked })}
+                  className="rounded border-slate-300"
+                />
+                加入今日计划
+              </label>
+            </div>
+            <button type="submit" className="w-full py-2 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600">
+              保存任务
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
