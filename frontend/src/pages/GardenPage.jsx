@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { LeafIcon, SparklesIcon, SunIcon } from '@heroicons/react/24/outline';
+import { SparklesIcon, SunIcon } from '@heroicons/react/24/outline';
 import api from '../api.js';
 
-export default function GardenPage({ adminMode }) {
+export default function GardenPage({ isAdmin }) {
   const [data, setData] = useState({ total_pomodoros: 0, weekly_pomodoros: 0, category_stats: {}, level: '种子' });
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export default function GardenPage({ adminMode }) {
           <h1 className="text-3xl font-bold text-slate-900">专注的花园长势</h1>
           <p className="text-slate-500 mt-1">每一次专注，都会让这座花园更茂盛。</p>
         </div>
-        <span className={`px-3 py-2 rounded-full text-sm font-semibold ${adminMode ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+        <span className={`px-3 py-2 rounded-full text-sm font-semibold ${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
           等级：{data.level}
         </span>
       </div>
@@ -27,7 +27,7 @@ export default function GardenPage({ adminMode }) {
       <div className="grid md:grid-cols-3 gap-4">
         <div className="card p-5 flex items-center gap-4">
           <div className="h-12 w-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-            <LeafIcon className="h-6 w-6" />
+            <SparklesIcon className="h-6 w-6" />
           </div>
           <div>
             <p className="text-sm text-slate-500">总番茄数</p>
@@ -74,7 +74,7 @@ export default function GardenPage({ adminMode }) {
                 </div>
                 <div className="w-full h-3 bg-white rounded-full border border-slate-100 mt-2 overflow-hidden">
                   <div
-                    className={`h-full rounded-full ${adminMode ? 'bg-gradient-to-r from-purple-400 to-sky-400' : 'bg-gradient-to-r from-emerald-400 to-sky-400'}`}
+                    className={`h-full rounded-full ${isAdmin ? 'bg-gradient-to-r from-purple-400 to-sky-400' : 'bg-gradient-to-r from-emerald-400 to-sky-400'}`}
                     style={{ width: `${Math.min(100, (minutes / 300) * 100)}%` }}
                   />
                 </div>

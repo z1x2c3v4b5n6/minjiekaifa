@@ -8,6 +8,14 @@ class UserProfile(models.Model):
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     nickname = models.CharField(max_length=100, blank=True)
+    role = models.CharField(
+        max_length=20,
+        choices=(
+            ("user", "普通用户"),
+            ("admin", "管理员"),
+        ),
+        default="user",
+    )
     avatar = models.URLField(blank=True)
     bio = models.TextField(blank=True)
     default_focus_minutes = models.IntegerField(default=25)
@@ -67,3 +75,18 @@ class MoodRecord(models.Model):
 
     def __str__(self):
         return f"{self.user.username} {self.date} {self.mood}"
+
+
+class Announcement(models.Model):
+    """系统公告，仅管理员可管理"""
+
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    is_published = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title

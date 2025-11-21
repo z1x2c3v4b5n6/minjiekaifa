@@ -11,7 +11,7 @@ const statusOptions = [
 
 const categoryOptions = ['学习', '工作', '生活', '健康'];
 
-export default function TasksPage({ adminMode }) {
+export default function TasksPage({ isAdmin }) {
   const [tasks, setTasks] = useState([]);
   const [filters, setFilters] = useState({ status: '', category: '' });
   const [form, setForm] = useState({ title: '', category: '', estimated_pomodoros: 1, status: 'todo' });
@@ -58,8 +58,8 @@ export default function TasksPage({ adminMode }) {
           <p className="text-sm text-slate-500">任务管理</p>
           <h1 className="text-3xl font-bold text-slate-900">规划与安排</h1>
         </div>
-        <div className={`px-4 py-2 rounded-full text-sm font-semibold ${adminMode ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
-          {adminMode ? '管理员视角：任务面板强化展示' : '普通视角：轻量任务列表'}
+        <div className={`px-4 py-2 rounded-full text-sm font-semibold ${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+          {isAdmin ? '管理员视角：任务面板强化展示' : '普通视角：轻量任务列表'}
         </div>
       </div>
 

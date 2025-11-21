@@ -8,12 +8,13 @@ import LoginPage from './pages/LoginPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import StatsPage from './pages/StatsPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
+import AdminAnnouncements from './pages/AdminAnnouncements.jsx';
 import api from './api.js';
 
 export const AuthContext = createContext(null);
 
-function ProtectedLayout({ adminMode, onLogout }) {
-  const { token, profile } = React.useContext(AuthContext);
+function ProtectedLayout({ isAdmin, onLogout }) {
+  const { token, profile, role } = React.useContext(AuthContext);
   const location = useLocation();
 
   if (!token) {
@@ -21,8 +22,8 @@ function ProtectedLayout({ adminMode, onLogout }) {
   }
 
   return (
-    <div className={`min-h-screen ${adminMode ? 'bg-gradient-to-br from-indigo-50 via-purple-50 to-emerald-50' : 'bg-gradient-to-br from-sky-50 via-emerald-50 to-white'}`}>
-      <Navbar adminMode={adminMode} profile={profile} onLogout={onLogout} />
+    <div className={`min-h-screen ${isAdmin ? 'bg-gradient-to-br from-indigo-50 via-purple-50 to-emerald-50' : 'bg-gradient-to-br from-sky-50 via-emerald-50 to-white'}`}>
+      <Navbar isAdmin={isAdmin} role={role} profile={profile} onLogout={onLogout} />
       <div className="page-shell">
         <Outlet />
       </div>
@@ -30,17 +31,22 @@ function ProtectedLayout({ adminMode, onLogout }) {
   );
 }
 
+function AdminRoute() {
+  const { role } = React.useContext(AuthContext);
+  return role === 'admin' ? <Outlet /> : <Navigate to="/" replace />;
+}
+
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [role, setRole] = useState(() => user?.role || 'user');
   const [loadingProfile, setLoadingProfile] = useState(false);
 
-  const adminMode = useMemo(() => {
-    if (!profile) return false;
-    const nickname = profile.nickname?.toLowerCase() || '';
-    const username = profile.user?.username?.toLowerCase?.() || '';
-    return nickname.includes('admin') || username.includes('admin');
-  }, [profile]);
+  const isAdmin = useMemo(() => role === 'admin', [role]);
 
   useEffect(() => {
     if (!token) {
@@ -50,38 +56,61 @@ export default function App() {
     setLoadingProfile(true);
     api
       .get('/profile/')
-      .then((res) => setProfile(res.data))
+      .then((res) => {
+        setProfile(res.data);
+        const merged = {
+          id: user?.id,
+          username: res.data.username,
+          nickname: res.data.nickname || res.data.username,
+          role: res.data.role || role,
+        };
+        setUser(merged);
+        setRole(merged.role || 'user');
+        localStorage.setItem('user', JSON.stringify(merged));
+      })
       .catch(() => setProfile(null))
       .finally(() => setLoadingProfile(false));
   }, [token]);
 
-  const login = (newToken) => {
+  const login = (newToken, userInfo) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
+    if (userInfo) {
+      setUser(userInfo);
+      setRole(userInfo.role || 'user');
+      localStorage.setItem('user', JSON.stringify(userInfo));
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setProfile(null);
+    setUser(null);
+    setRole('user');
     setToken(null);
   };
 
   const contextValue = useMemo(
-    () => ({ token, profile, setProfile, login, logout, loadingProfile }),
-    [token, profile, loadingProfile]
+    () => ({ token, profile, setProfile, login, logout, loadingProfile, user, role, setRole }),
+    [token, profile, loadingProfile, user, role]
   );
 
   return (
     <AuthContext.Provider value={contextValue}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route element={<ProtectedLayout adminMode={adminMode} onLogout={logout} />}>
-          <Route path="/" element={<Dashboard adminMode={adminMode} />} />
-          <Route path="/tasks" element={<TasksPage adminMode={adminMode} />} />
-          <Route path="/focus" element={<FocusPage adminMode={adminMode} />} />
-          <Route path="/garden" element={<GardenPage adminMode={adminMode} />} />
-          <Route path="/stats" element={<StatsPage adminMode={adminMode} />} />
-          <Route path="/profile" element={<ProfilePage adminMode={adminMode} />} />
+        <Route element={<ProtectedLayout isAdmin={isAdmin} onLogout={logout} />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/tasks" element={<TasksPage isAdmin={isAdmin} />} />
+          <Route path="/focus" element={<FocusPage isAdmin={isAdmin} />} />
+          <Route path="/garden" element={<GardenPage isAdmin={isAdmin} />} />
+          <Route path="/stats" element={<StatsPage isAdmin={isAdmin} />} />
+          <Route path="/profile" element={<ProfilePage isAdmin={isAdmin} />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

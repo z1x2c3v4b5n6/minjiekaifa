@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import FocusSession, MoodRecord, Task, UserProfile
+from .models import Announcement, FocusSession, MoodRecord, Task, UserProfile
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -13,6 +13,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             "username",
             "nickname",
+            "role",
             "avatar",
             "bio",
             "email",
@@ -44,10 +45,6 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
-    def create(self, validated_data):
-        user = self.context["request"].user
-        return Task.objects.create(user=user, **validated_data)
-
 
 class FocusSessionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -62,10 +59,6 @@ class FocusSessionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
-    def create(self, validated_data):
-        user = self.context["request"].user
-        return FocusSession.objects.create(user=user, **validated_data)
-
 
 class MoodRecordSerializer(serializers.ModelSerializer):
     class Meta:
@@ -74,7 +67,7 @@ class MoodRecordSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def create(self, validated_data):
-        user = self.context["request"].user
+        user = validated_data.pop("user", None) or self.context["request"].user
         return MoodRecord.objects.update_or_create(
             user=user, date=validated_data.get("date"), defaults=validated_data
         )[0]
@@ -85,3 +78,21 @@ class GardenViewSerializer(serializers.Serializer):
     weekly_pomodoros = serializers.IntegerField()
     category_stats = serializers.DictField(child=serializers.IntegerField())
     level = serializers.CharField()
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Announcement
+        fields = ["id", "title", "content", "is_published", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    nickname = serializers.CharField(source="profile.nickname", read_only=True)
+    role = serializers.CharField(source="profile.role", read_only=True)
+    total_focus_minutes = serializers.IntegerField(read_only=True)
+    total_sessions = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "nickname", "role", "date_joined", "total_focus_minutes", "total_sessions"]
