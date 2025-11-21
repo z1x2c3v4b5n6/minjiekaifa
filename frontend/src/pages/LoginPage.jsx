@@ -33,7 +33,7 @@ export default function LoginPage() {
         username: form.username,
         password: form.password,
       });
-      login(res.data.token);
+      login(res.data.token, res.data.user);
       const redirect = location.state?.from?.pathname || '/';
       navigate(redirect);
     } catch (err) {
@@ -47,16 +47,17 @@ export default function LoginPage() {
     const username = type === 'admin' ? 'admin_demo' : 'demo_user';
     const password = 'timegarden123';
     const nickname = type === 'admin' ? 'Admin 管理员' : '花园友人';
+    const role = type === 'admin' ? 'admin' : 'user';
     setForm({ username, password, confirm: password, nickname });
     setMode('login');
     try {
-      await api.post('/auth/register/', { username, password, nickname });
+      await api.post('/auth/register/', { username, password, nickname, role });
     } catch (e) {
       // ignore duplicate
     }
     try {
       const res = await api.post('/auth/login/', { username, password });
-      login(res.data.token);
+      login(res.data.token, res.data.user);
       navigate('/');
     } catch (err) {
       setError('快速登录失败，请手动注册');

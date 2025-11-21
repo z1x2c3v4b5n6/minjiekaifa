@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import api from '../api.js';
 import { AuthContext } from '../App.jsx';
 
-export default function ProfilePage({ adminMode }) {
+export default function ProfilePage({ isAdmin }) {
   const { profile, setProfile } = useContext(AuthContext);
   const [form, setForm] = useState(null);
   const [message, setMessage] = useState('');
@@ -35,8 +35,8 @@ export default function ProfilePage({ adminMode }) {
               <p className="text-sm text-slate-500">基本资料</p>
               <p className="text-lg font-semibold text-slate-900">昵称 / 签名 / 头像</p>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs ${adminMode ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
-              {adminMode ? '管理员' : '普通用户'}
+            <span className={`px-3 py-1 rounded-full text-xs ${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+              {isAdmin ? '管理员' : '普通用户'}
             </span>
           </div>
           <div>
@@ -110,7 +110,7 @@ export default function ProfilePage({ adminMode }) {
           </div>
           <button
             onClick={handleSave}
-            className={`px-5 py-3 rounded-xl text-white font-semibold shadow ${adminMode ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+            className={`px-5 py-3 rounded-xl text-white font-semibold shadow ${isAdmin ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
           >
             保存设置
           </button>

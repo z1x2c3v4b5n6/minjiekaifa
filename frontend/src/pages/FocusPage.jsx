@@ -10,7 +10,7 @@ const scenes = [
   { label: '咖啡馆 Cafe', value: 'cafe', color: 'from-amber-100 to-orange-100' },
 ];
 
-export default function FocusPage({ adminMode }) {
+export default function FocusPage({ isAdmin }) {
   const { profile } = useContext(AuthContext);
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -101,7 +101,7 @@ export default function FocusPage({ adminMode }) {
                   setRemaining((profile?.default_focus_minutes || 25) * 60);
                   setRunning(true);
                 }}
-                className={`px-6 py-3 rounded-full text-white font-semibold shadow ${adminMode ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                className={`px-6 py-3 rounded-full text-white font-semibold shadow ${isAdmin ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
               >
                 开始专注
               </button>

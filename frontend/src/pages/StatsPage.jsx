@@ -19,7 +19,7 @@ function BarChart({ data }) {
   );
 }
 
-export default function StatsPage({ adminMode }) {
+export default function StatsPage({ isAdmin }) {
   const [stats, setStats] = useState({ daily: [], category_stats: {} });
   const [moods, setMoods] = useState([]);
 
@@ -73,7 +73,7 @@ export default function StatsPage({ adminMode }) {
           <div className="space-y-3">
             {moods.map((item) => (
               <div key={item.date} className="flex items-start gap-3">
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold ${adminMode ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold ${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
                   {item.mood}
                 </div>
                 <div className="flex-1">

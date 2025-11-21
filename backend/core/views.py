@@ -3,7 +3,8 @@ from datetime import timedelta
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Sum
+from django.db.models import Count, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -11,8 +12,11 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import FocusSession, MoodRecord, Task, UserProfile
+from .models import Announcement, FocusSession, MoodRecord, Task, UserProfile
+from .permissions import IsAdminUserRole
 from .serializers import (
+    AdminUserSerializer,
+    AnnouncementSerializer,
     FocusSessionSerializer,
     GardenViewSerializer,
     MoodRecordSerializer,
@@ -28,14 +32,24 @@ class RegisterView(APIView):
         username = request.data.get("username")
         password = request.data.get("password")
         nickname = request.data.get("nickname", "")
+        role = request.data.get("role", "user")
         if not username or not password:
             return Response({"detail": "用户名和密码必填"}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(username=username).exists():
             return Response({"detail": "用户名已存在"}, status=status.HTTP_400_BAD_REQUEST)
         user = User.objects.create_user(username=username, password=password)
-        UserProfile.objects.create(user=user, nickname=nickname)
+        UserProfile.objects.create(user=user, nickname=nickname, role=role)
         token, _ = Token.objects.get_or_create(user=user)
-        return Response({"token": token.key})
+        return Response(
+            {
+                "token": token.key,
+                "user": {
+                    "id": user.id,
+                    "nickname": nickname or username,
+                    "role": role,
+                },
+            }
+        )
 
 
 class LoginView(APIView):
@@ -48,7 +62,17 @@ class LoginView(APIView):
         if not user:
             return Response({"detail": "登录失败"}, status=status.HTTP_400_BAD_REQUEST)
         token, _ = Token.objects.get_or_create(user=user)
-        return Response({"token": token.key})
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        return Response(
+            {
+                "token": token.key,
+                "user": {
+                    "id": user.id,
+                    "nickname": profile.nickname or user.username,
+                    "role": profile.role,
+                },
+            }
+        )
 
 
 class LogoutView(APIView):
@@ -203,3 +227,65 @@ class GardenOverviewView(APIView):
             }
         )
         return Response(serializer.data)
+
+
+class AdminOverviewView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserRole]
+
+    def get(self, request):
+        now = timezone.now()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_sessions = FocusSession.objects.filter(created_at__gte=start_of_day)
+        total_focus_minutes = FocusSession.objects.aggregate(total=Sum("duration_minutes"))["total"] or 0
+        top_scene = (
+            UserProfile.objects.values("default_scene")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+            .first()
+        )
+        today_plan_users = (
+            Task.objects.filter(is_today=True)
+            .values("user_id")
+            .annotate(count=Count("id"))
+            .count()
+        )
+        return Response(
+            {
+                "total_users": User.objects.count(),
+                "total_focus_minutes": total_focus_minutes,
+                "today_focus_minutes": today_sessions.aggregate(total=Sum("duration_minutes"))["total"] or 0,
+                "today_sessions": today_sessions.count(),
+                "top_scene": top_scene["default_scene"] if top_scene else None,
+                "today_plan_users": today_plan_users,
+            }
+        )
+
+
+class AdminUserListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserRole]
+    serializer_class = AdminUserSerializer
+
+    def get_queryset(self):
+        return (
+            User.objects.all()
+            .annotate(
+                total_focus_minutes=Coalesce(Sum("sessions__duration_minutes"), 0),
+                total_sessions=Coalesce(Count("sessions"), 0),
+            )
+            .select_related("profile")
+            .order_by("-date_joined")
+        )
+
+
+class AnnouncementViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserRole]
+    serializer_class = AnnouncementSerializer
+    queryset = Announcement.objects.all()
+
+
+class PublishedAnnouncementListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AnnouncementSerializer
+
+    def get_queryset(self):
+        return Announcement.objects.filter(is_published=True)
