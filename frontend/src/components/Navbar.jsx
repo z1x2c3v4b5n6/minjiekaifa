@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { ArrowRightOnRectangleIcon, LeafIcon } from '@heroicons/react/24/outline';
+import { ArrowRightOnRectangleIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { AuthContext } from '../App.jsx';
 
 export default function Navbar({ isAdmin, role, profile, onLogout }) {
@@ -43,7 +43,7 @@ export default function Navbar({ isAdmin, role, profile, onLogout }) {
               isAdmin ? 'bg-gradient-to-br from-purple-500 to-indigo-400' : 'bg-gradient-to-br from-emerald-500 to-sky-400'
             }`}
           >
-            <LeafIcon className="h-6 w-6" />
+            <SparklesIcon className="h-6 w-6" />
           </div>
           <div>
             <p className="text-lg font-semibold text-slate-900">TimeGarden 时光花园</p>

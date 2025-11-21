@@ -4,15 +4,19 @@ import api from '../api.js';
 export default function StatsPage() {
   const [overview, setOverview] = useState(null);
   const [moods, setMoods] = useState([]);
+  const [todayMood, setTodayMood] = useState({ mood: null, note: '' });
+  const [saving, setSaving] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [overviewRes, moodRes] = await Promise.all([
+      const [overviewRes, moodRes, todayRes] = await Promise.all([
         api.get('/stats/overview/?days=7'),
         api.get('/moods/recent/?days=14'),
+        api.get('/moods/today/'),
       ]);
       setOverview(overviewRes.data);
       setMoods(moodRes.data);
+      setTodayMood({ mood: todayRes.data.mood, note: todayRes.data.note || '' });
     } catch (err) {
       console.error(err);
     }
@@ -22,11 +26,63 @@ export default function StatsPage() {
     fetchData();
   }, []);
 
+  const saveMood = async (e) => {
+    e.preventDefault();
+    if (!todayMood.mood) return;
+    setSaving(true);
+    try {
+      await api.post('/moods/today/', todayMood);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <p className="text-sm text-slate-500">数据统计</p>
         <h1 className="text-2xl font-semibold text-slate-900">专注趋势与情绪</h1>
+      </div>
+
+      <div className="card p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <p className="text-sm text-slate-500">今日心情</p>
+          <p className="text-lg font-semibold text-slate-900">
+            {todayMood.mood ? `已选择：${moodEmoji(todayMood.mood)} ${todayMood.mood}/5` : '请记录今天的心情'}
+          </p>
+        </div>
+        <form className="flex flex-col md:flex-row items-start md:items-center gap-3" onSubmit={saveMood}>
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4, 5].map((m) => (
+              <button
+                type="button"
+                key={m}
+                onClick={() => setTodayMood((prev) => ({ ...prev, mood: m }))}
+                className={`w-10 h-10 rounded-full text-lg border flex items-center justify-center ${
+                  todayMood.mood === m ? 'bg-emerald-500 text-white border-emerald-500' : 'border-slate-200 bg-white'
+                }`}
+              >
+                {moodEmoji(m)}
+              </button>
+            ))}
+          </div>
+          <input
+            className="w-full md:w-64 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            placeholder="写一句小日记..."
+            value={todayMood.note}
+            onChange={(e) => setTodayMood((prev) => ({ ...prev, note: e.target.value }))}
+          />
+          <button
+            type="submit"
+            disabled={saving || !todayMood.mood}
+            className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-semibold disabled:opacity-60"
+          >
+            {saving ? '保存中...' : '保存心情'}
+          </button>
+        </form>
       </div>
 
       {!overview ? (
@@ -94,18 +150,15 @@ export default function StatsPage() {
         ) : (
           <div className="space-y-2">
             {moods.map((mood) => (
-              <div key={mood.id || mood.date} className="flex items-center gap-3">
-                <div className="w-28 text-sm text-slate-500">{mood.date}</div>
+              <div key={mood.id || mood.date} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
+                <div className="w-24 text-sm text-slate-500">{mood.date}</div>
                 <div className="flex-1">
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-yellow-400 to-emerald-400"
-                      style={{ width: `${(Number(mood.mood) / 5) * 100}%` }}
-                    />
+                  <div className="flex items-center gap-2 text-lg">
+                    <span>{moodEmoji(mood.mood)}</span>
+                    <span className="text-slate-700 font-semibold">{mood.mood}/5</span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">{mood.note}</p>
+                  <p className="text-xs text-slate-500 mt-1">{mood.note || '无备注'}</p>
                 </div>
-                <div className="w-10 text-right text-sm font-semibold text-slate-700">{mood.mood}/5</div>
               </div>
             ))}
           </div>
@@ -113,6 +166,17 @@ export default function StatsPage() {
       </div>
     </div>
   );
+}
+
+function moodEmoji(value) {
+  const map = {
+    1: '😢',
+    2: '😟',
+    3: '😐',
+    4: '🙂',
+    5: '😄',
+  };
+  return map[value] || '🙂';
 }
 
 function getMaxValue(obj) {

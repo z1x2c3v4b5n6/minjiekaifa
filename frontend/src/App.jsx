@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import StatsPage from './pages/StatsPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import AdminAnnouncements from './pages/AdminAnnouncements.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import api from './api.js';
 
 export const AuthContext = createContext(null);
@@ -108,7 +109,7 @@ export default function App() {
           <Route path="/stats" element={<StatsPage isAdmin={isAdmin} />} />
           <Route path="/profile" element={<ProfilePage isAdmin={isAdmin} />} />
           <Route element={<AdminRoute />}>
-            <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/announcements" element={<AdminAnnouncements />} />
           </Route>
         </Route>

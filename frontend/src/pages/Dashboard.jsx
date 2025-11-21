@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import dayjs from 'dayjs';
 import api from '../api.js';
 import PomodoroTimer from '../components/PomodoroTimer.jsx';
 
@@ -15,6 +14,7 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('today');
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
 
   const fetchStats = async () => {
     try {
@@ -45,6 +45,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchStats();
     fetchTasks('today');
+    api.get('/announcements/').then((res) => setAnnouncements(res.data.results || res.data));
   }, []);
 
   const toggleToday = async (taskId) => {
@@ -66,7 +67,7 @@ export default function Dashboard() {
     }
   };
 
-  const today = dayjs().format('YYYY 年 MM 月 DD 日');
+  const today = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -142,6 +143,23 @@ export default function Dashboard() {
         </div>
         <div>
           <PomodoroTimer tasks={tasks} onSessionLogged={() => fetchStats()} />
+          <div className="card p-4 mt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">系统公告</p>
+                <h3 className="text-lg font-semibold text-slate-900">最新通知</h3>
+              </div>
+              <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{announcements.length || 0}</span>
+            </div>
+            {announcements.slice(0, 3).map((a) => (
+              <div key={a.id} className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="font-semibold text-slate-900">{a.title}</p>
+                <p className="text-sm text-slate-600 line-clamp-2">{a.content}</p>
+                <p className="text-xs text-slate-400 mt-1">{new Date(a.created_at).toLocaleString()}</p>
+              </div>
+            ))}
+            {!announcements.length && <p className="text-sm text-slate-500">暂无公告</p>}
+          </div>
         </div>
       </div>
     </div>

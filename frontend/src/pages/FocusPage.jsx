@@ -5,10 +5,17 @@ import { AuthContext } from '../App.jsx';
 import api from '../api.js';
 
 const scenes = [
+  { label: '无声 None', value: 'none', color: 'from-white to-white' },
   { label: '雨声 Rain', value: 'rain', color: 'from-sky-100 to-slate-100' },
   { label: '海边 Sea', value: 'sea', color: 'from-cyan-100 to-blue-100' },
   { label: '咖啡馆 Cafe', value: 'cafe', color: 'from-amber-100 to-orange-100' },
 ];
+
+const sceneAudios = {
+  rain: 'https://cdn.pixabay.com/download/audio/2021/09/01/audio_5702e0782a.mp3?filename=light-rain-ambient-113340.mp3',
+  sea: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_5d6e94a42f.mp3?filename=ocean-waves-hit-the-beach-10152.mp3',
+  cafe: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_399fcbd319.mp3?filename=coffeeshop-ambience-20965.mp3',
+};
 
 export default function FocusPage({ isAdmin }) {
   const { profile } = useContext(AuthContext);
@@ -18,6 +25,7 @@ export default function FocusPage({ isAdmin }) {
   const [running, setRunning] = useState(false);
   const [remaining, setRemaining] = useState((profile?.default_focus_minutes || 25) * 60);
   const timerRef = useRef(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     api.get('/tasks/').then((res) => setTasks(res.data));
@@ -27,6 +35,24 @@ export default function FocusPage({ isAdmin }) {
     setRemaining((profile?.default_focus_minutes || 25) * 60);
     setScene(profile?.default_scene || 'rain');
   }, [profile]);
+
+  // load audio when scene changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (scene === 'none' || !sceneAudios[scene]) return undefined;
+    const audio = new Audio(sceneAudios[scene]);
+    audio.loop = true;
+    audioRef.current = audio;
+    if (running) {
+      audio.play().catch(() => {});
+    }
+    return () => {
+      audio.pause();
+    };
+  }, [scene]);
 
   useEffect(() => {
     if (!running) return;
@@ -43,11 +69,26 @@ export default function FocusPage({ isAdmin }) {
     return () => clearInterval(timerRef.current);
   }, [running]);
 
+  // control audio play/pause with running state
+  useEffect(() => {
+    if (!audioRef.current) return;
+    if (running && scene !== 'none') {
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [running, scene]);
+
   const minutes = useMemo(() => String(Math.floor(remaining / 60)).padStart(2, '0'), [remaining]);
   const seconds = useMemo(() => String(remaining % 60).padStart(2, '0'), [remaining]);
 
   const handleComplete = async () => {
     setRunning(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     try {
       await api.post('/sessions/', {
         task: selectedTask ? selectedTask.id : null,
@@ -64,6 +105,10 @@ export default function FocusPage({ isAdmin }) {
   const handleStop = async () => {
     setRunning(false);
     clearInterval(timerRef.current);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     await api.post('/sessions/', {
       task: selectedTask ? selectedTask.id : null,
       duration_minutes: Math.round((remaining / 60) * 10) / 10,
@@ -162,7 +207,7 @@ export default function FocusPage({ isAdmin }) {
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-400 mt-2">（示例界面效果，环境音可按需替换真实音频）</p>
+            <p className="text-xs text-slate-400 mt-2">（开始计时时播放，暂停/结束时自动停止）</p>
           </div>
         </div>
       </div>
