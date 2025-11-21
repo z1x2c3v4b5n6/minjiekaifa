@@ -9,7 +9,7 @@ import TodayTaskList from '../components/TodayTaskList.jsx';
 
 export default function PersonalDashboard() {
   const { profile } = useContext(AuthContext);
-  const [todayStats, setTodayStats] = useState({ today_minutes: 0, today_pomodoros: 0 });
+  const [todayStats, setTodayStats] = useState({ today_minutes: 0, today_sessions: 0 });
   const [todayTasks, setTodayTasks] = useState([]);
 
   const fetchTodayStats = () => {
@@ -44,7 +44,7 @@ export default function PersonalDashboard() {
       <div className="grid md:grid-cols-3 gap-4">
         <StatsCard
           title="今日番茄"
-          value={`${todayStats.today_pomodoros} 次`}
+          value={`${todayStats.today_sessions} 次`}
           sub="完成一次专注就是一次收获"
           icon={<SparklesIcon className="h-6 w-6" />}
           accent="emerald"

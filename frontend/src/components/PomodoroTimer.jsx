@@ -2,19 +2,26 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/solid';
 import api from '../api.js';
 
-export default function PomodoroTimer({ tasks = [], defaultMinutes = 25, onSessionLogged }) {
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [remaining, setRemaining] = useState(defaultMinutes * 60);
+const presets = [
+  { label: '25 分钟', minutes: 25 },
+  { label: '45 分钟', minutes: 45 },
+];
+
+export default function PomodoroTimer({ tasks = [], onSessionLogged }) {
+  const [modeMinutes, setModeMinutes] = useState(25);
+  const [custom, setCustom] = useState(25);
+  const [remaining, setRemaining] = useState(modeMinutes * 60);
   const [running, setRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
   const timerRef = useRef(null);
+  const startedAtRef = useRef(null);
 
   useEffect(() => {
-    setRemaining(defaultMinutes * 60);
-  }, [defaultMinutes]);
+    setRemaining(modeMinutes * 60);
+  }, [modeMinutes]);
 
   useEffect(() => {
-    if (!running) return;
+    if (!running) return undefined;
     timerRef.current = setInterval(() => {
       setRemaining((prev) => {
         if (prev <= 1) {
@@ -30,32 +37,33 @@ export default function PomodoroTimer({ tasks = [], defaultMinutes = 25, onSessi
 
   const minutes = useMemo(() => String(Math.floor(remaining / 60)).padStart(2, '0'), [remaining]);
   const seconds = useMemo(() => String(remaining % 60).padStart(2, '0'), [remaining]);
+  const progress = useMemo(() => 1 - remaining / (modeMinutes * 60), [remaining, modeMinutes]);
 
-  const handleStart = () => {
-    setRemaining(defaultMinutes * 60);
-    setIsPaused(false);
+  const startTimer = () => {
+    setRemaining(modeMinutes * 60);
+    startedAtRef.current = new Date().toISOString();
     setRunning(true);
   };
 
-  const handlePause = () => {
-    setIsPaused(true);
+  const pauseTimer = () => {
     setRunning(false);
   };
 
-  const handleStop = () => {
+  const stopTimer = () => {
     setRunning(false);
-    setIsPaused(false);
-    setRemaining(defaultMinutes * 60);
+    setRemaining(modeMinutes * 60);
+    startedAtRef.current = null;
   };
 
   const handleComplete = async () => {
     setRunning(false);
-    setIsPaused(false);
+    const endedAt = new Date().toISOString();
     const payload = {
       task: selectedTask ? selectedTask.id : null,
-      duration_minutes: defaultMinutes,
+      duration_minutes: modeMinutes,
       is_completed: true,
-      interrupted_reason: '',
+      started_at: startedAtRef.current,
+      ended_at: endedAt,
     };
     try {
       await api.post('/sessions/', payload);
@@ -63,15 +71,16 @@ export default function PomodoroTimer({ tasks = [], defaultMinutes = 25, onSessi
     } catch (err) {
       console.error(err);
     } finally {
-      setRemaining(defaultMinutes * 60);
+      setRemaining(modeMinutes * 60);
+      startedAtRef.current = null;
     }
   };
 
   return (
-    <div className="card p-6 gradient-ring">
+    <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-sm text-slate-500">番茄计时</p>
+          <p className="text-sm text-slate-500">番茄计时器</p>
           <p className="text-xl font-semibold text-slate-900">专注一下</p>
         </div>
         <select
@@ -90,17 +99,61 @@ export default function PomodoroTimer({ tasks = [], defaultMinutes = 25, onSessi
           ))}
         </select>
       </div>
+
+      <div className="flex items-center gap-3 mb-4">
+        {presets.map((preset) => (
+          <button
+            key={preset.minutes}
+            className={`px-4 py-2 rounded-full border text-sm ${
+              modeMinutes === preset.minutes
+                ? 'bg-emerald-500 text-white border-emerald-500'
+                : 'border-slate-200 text-slate-600 hover:border-emerald-300'
+            }`}
+            onClick={() => setModeMinutes(preset.minutes)}
+          >
+            {preset.label}
+          </button>
+        ))}
+        <div className="flex items-center gap-2 text-sm">
+          <input
+            type="number"
+            min="5"
+            className="w-16 px-2 py-1 rounded border border-slate-200"
+            value={custom}
+            onChange={(e) => setCustom(Number(e.target.value) || 0)}
+          />
+          <button
+            className={`px-4 py-2 rounded-full border text-sm ${
+              modeMinutes === custom
+                ? 'bg-emerald-500 text-white border-emerald-500'
+                : 'border-slate-200 text-slate-600 hover:border-emerald-300'
+            }`}
+            onClick={() => setModeMinutes(custom)}
+          >
+            自定义
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-col items-center gap-4">
-        <div className="relative h-52 w-52 rounded-full bg-white shadow-inner flex items-center justify-center border border-slate-100">
-          <div className="absolute inset-3 rounded-full bg-gradient-to-br from-emerald-50 to-sky-50" />
-          <div className="relative text-5xl font-bold text-slate-900">
-            {minutes}:{seconds}
+        <div className="relative h-56 w-56">
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `conic-gradient(#10b981 ${progress * 360}deg, #e2e8f0 ${progress * 360}deg)` ,
+            }}
+          />
+          <div className="absolute inset-4 rounded-full bg-white shadow-inner border border-slate-100 grid place-items-center">
+            <div className="text-5xl font-bold text-slate-900">
+              {minutes}:{seconds}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">{selectedTask ? selectedTask.title : '自由模式'}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {!running ? (
             <button
-              onClick={handleStart}
+              onClick={startTimer}
               className="px-5 py-3 rounded-full bg-emerald-500 text-white font-semibold shadow hover:bg-emerald-600 flex items-center gap-2"
             >
               <PlayIcon className="h-5 w-5" />
@@ -109,14 +162,14 @@ export default function PomodoroTimer({ tasks = [], defaultMinutes = 25, onSessi
           ) : (
             <>
               <button
-                onClick={handlePause}
+                onClick={pauseTimer}
                 className="px-4 py-3 rounded-full bg-amber-500 text-white font-semibold shadow hover:bg-amber-600 flex items-center gap-2"
               >
                 <PauseIcon className="h-5 w-5" />
                 暂停
               </button>
               <button
-                onClick={handleStop}
+                onClick={stopTimer}
                 className="px-4 py-3 rounded-full bg-slate-200 text-slate-700 font-semibold shadow hover:bg-slate-300 flex items-center gap-2"
               >
                 <StopIcon className="h-5 w-5" />
@@ -125,7 +178,6 @@ export default function PomodoroTimer({ tasks = [], defaultMinutes = 25, onSessi
             </>
           )}
         </div>
-        {isPaused && <p className="text-xs text-amber-600">已暂停，点击结束重置或再次开始。</p>}
       </div>
     </div>
   );

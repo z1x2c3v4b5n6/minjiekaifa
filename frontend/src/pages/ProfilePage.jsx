@@ -1,122 +1,134 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from '../api.js';
-import { AuthContext } from '../App.jsx';
 
-export default function ProfilePage({ isAdmin }) {
-  const { profile, setProfile } = useContext(AuthContext);
-  const [form, setForm] = useState(null);
-  const [message, setMessage] = useState('');
+export default function ProfilePage() {
+  const [profile, setProfile] = useState(null);
+  const [form, setForm] = useState({ nickname: '', default_focus_minutes: 25, default_short_break_minutes: 5, default_long_break_minutes: 15, default_scene: 'rain' });
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setForm(profile);
-  }, [profile]);
-
-  const handleSave = async () => {
-    const res = await api.put('/profile/', form);
-    setProfile(res.data);
-    setMessage('保存成功');
-    setTimeout(() => setMessage(''), 2000);
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get('/profile/');
+      setProfile(res.data);
+      setForm({
+        nickname: res.data.nickname || '',
+        default_focus_minutes: res.data.default_focus_minutes,
+        default_short_break_minutes: res.data.default_short_break_minutes,
+        default_long_break_minutes: res.data.default_long_break_minutes,
+        default_scene: res.data.default_scene,
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  if (!form) return null;
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.patch('/profile/', form);
+      fetchProfile();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div>
         <p className="text-sm text-slate-500">个人中心</p>
-        <h1 className="text-3xl font-bold text-slate-900">资料与偏好</h1>
-        <p className="text-slate-500 mt-1">让系统更懂你。</p>
+        <h1 className="text-2xl font-semibold text-slate-900">账户与偏好</h1>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="card p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">基本资料</p>
-              <p className="text-lg font-semibold text-slate-900">昵称 / 签名 / 头像</p>
+      {!profile ? (
+        <p className="text-sm text-slate-500">加载中...</p>
+      ) : (
+        <div className="grid lg:grid-cols-3 gap-4">
+          <div className="card p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center font-bold">
+                {profile.nickname?.[0] || profile.username?.[0] || 'U'}
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-slate-900">{profile.nickname || profile.username}</p>
+                <p className="text-sm text-slate-500">角色：{profile.role === 'admin' ? '管理员' : '普通用户'}</p>
+              </div>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs ${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
-              {isAdmin ? '管理员' : '普通用户'}
-            </span>
+            <div className="text-sm text-slate-600 space-y-1">
+              <p>账号：{profile.username}</p>
+              <p>默认场景：{profile.default_scene}</p>
+            </div>
           </div>
-          <div>
-            <label className="text-sm text-slate-600">昵称</label>
-            <input
-              value={form.nickname || ''}
-              onChange={(e) => setForm({ ...form, nickname: e.target.value })}
-              className="w-full mt-1 rounded-xl border border-slate-200 px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-600">头像 URL</label>
-            <input
-              value={form.avatar || ''}
-              onChange={(e) => setForm({ ...form, avatar: e.target.value })}
-              className="w-full mt-1 rounded-xl border border-slate-200 px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-slate-600">签名</label>
-            <textarea
-              value={form.bio || ''}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              className="w-full mt-1 rounded-xl border border-slate-200 px-3 py-2"
-            />
-          </div>
-        </div>
 
-        <div className="card p-6 space-y-4">
-          <p className="text-lg font-semibold text-slate-900">偏好设置</p>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm text-slate-600">默认专注时长（分钟）</label>
-              <input
-                type="number"
-                value={form.default_focus_minutes || 25}
-                onChange={(e) => setForm({ ...form, default_focus_minutes: Number(e.target.value) })}
-                className="w-full mt-1 rounded-xl border border-slate-200 px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-slate-600">默认短休（分钟）</label>
-              <input
-                type="number"
-                value={form.default_short_break_minutes || 5}
-                onChange={(e) => setForm({ ...form, default_short_break_minutes: Number(e.target.value) })}
-                className="w-full mt-1 rounded-xl border border-slate-200 px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-slate-600">默认长休（分钟）</label>
-              <input
-                type="number"
-                value={form.default_long_break_minutes || 15}
-                onChange={(e) => setForm({ ...form, default_long_break_minutes: Number(e.target.value) })}
-                className="w-full mt-1 rounded-xl border border-slate-200 px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-slate-600">默认环境音</label>
-              <select
-                value={form.default_scene || 'rain'}
-                onChange={(e) => setForm({ ...form, default_scene: e.target.value })}
-                className="w-full mt-1 rounded-xl border border-slate-200 px-3 py-2"
+          <div className="lg:col-span-2 card p-4">
+            <h3 className="text-lg font-semibold text-slate-900 mb-3">专注 & 场景设置</h3>
+            <form className="space-y-3" onSubmit={saveProfile}>
+              <div>
+                <label className="text-sm text-slate-600">昵称</label>
+                <input
+                  value={form.nickname}
+                  onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-sm text-slate-600">默认专注</label>
+                  <input
+                    type="number"
+                    value={form.default_focus_minutes}
+                    onChange={(e) => setForm({ ...form, default_focus_minutes: Number(e.target.value) })}
+                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-600">短休息</label>
+                  <input
+                    type="number"
+                    value={form.default_short_break_minutes}
+                    onChange={(e) => setForm({ ...form, default_short_break_minutes: Number(e.target.value) })}
+                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-600">长休息</label>
+                  <input
+                    type="number"
+                    value={form.default_long_break_minutes}
+                    onChange={(e) => setForm({ ...form, default_long_break_minutes: Number(e.target.value) })}
+                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm text-slate-600">默认环境音</label>
+                <select
+                  value={form.default_scene}
+                  onChange={(e) => setForm({ ...form, default_scene: e.target.value })}
+                  className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
+                >
+                  <option value="rain">雨声</option>
+                  <option value="forest">森林</option>
+                  <option value="cafe">咖啡店</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600"
               >
-                <option value="rain">Rain 雨声</option>
-                <option value="sea">Sea 海浪</option>
-                <option value="cafe">Cafe 咖啡馆</option>
-              </select>
-            </div>
+                {saving ? '保存中...' : '保存设置'}
+              </button>
+            </form>
           </div>
-          <button
-            onClick={handleSave}
-            className={`px-5 py-3 rounded-xl text-white font-semibold shadow ${isAdmin ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
-          >
-            保存设置
-          </button>
-          {message && <p className="text-sm text-emerald-600">{message}</p>}
         </div>
-      </div>
+      )}
     </div>
   );
 }
