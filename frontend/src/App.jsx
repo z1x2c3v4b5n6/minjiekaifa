@@ -10,6 +10,7 @@ import StatsPage from './pages/StatsPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import AdminAnnouncements from './pages/AdminAnnouncements.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminSounds from './pages/AdminSounds.jsx';
 import api from './api.js';
 
 export const AuthContext = createContext(null);
@@ -111,6 +112,7 @@ export default function App() {
           <Route element={<AdminRoute />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+            <Route path="/admin/sounds" element={<AdminSounds />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

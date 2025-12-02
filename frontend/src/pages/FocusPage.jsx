@@ -4,24 +4,12 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../App.jsx';
 import api from '../api.js';
 
-const scenes = [
-  { label: '无声 None', value: 'none', color: 'from-white to-white' },
-  { label: '雨声 Rain', value: 'rain', color: 'from-sky-100 to-slate-100' },
-  { label: '海边 Sea', value: 'sea', color: 'from-cyan-100 to-blue-100' },
-  { label: '咖啡馆 Cafe', value: 'cafe', color: 'from-amber-100 to-orange-100' },
-];
-
-const sceneAudios = {
-  rain: 'https://cdn.pixabay.com/download/audio/2021/09/01/audio_5702e0782a.mp3?filename=light-rain-ambient-113340.mp3',
-  sea: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_5d6e94a42f.mp3?filename=ocean-waves-hit-the-beach-10152.mp3',
-  cafe: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_399fcbd319.mp3?filename=coffeeshop-ambience-20965.mp3',
-};
-
 export default function FocusPage({ isAdmin }) {
   const { profile } = useContext(AuthContext);
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [scene, setScene] = useState(profile?.default_scene || 'rain');
+  const [availableSounds, setAvailableSounds] = useState([]);
   const [running, setRunning] = useState(false);
   const [remaining, setRemaining] = useState((profile?.default_focus_minutes || 25) * 60);
   const timerRef = useRef(null);
@@ -32,9 +20,33 @@ export default function FocusPage({ isAdmin }) {
   }, []);
 
   useEffect(() => {
+    api.get('/sounds/').then((res) => setAvailableSounds(res.data));
+  }, []);
+
+  const scenes = useMemo(() => {
+    const palette = ['from-sky-100 to-slate-100', 'from-cyan-100 to-blue-100', 'from-amber-100 to-orange-100', 'from-purple-100 to-indigo-100'];
+    const dynamic = availableSounds.map((sound, idx) => ({
+      label: sound.name,
+      value: sound.key,
+      url: sound.url,
+      color: palette[idx % palette.length],
+    }));
+    return [{ label: '无声 None', value: 'none', color: 'from-white to-white' }, ...dynamic];
+  }, [availableSounds]);
+
+  useEffect(() => {
     setRemaining((profile?.default_focus_minutes || 25) * 60);
-    setScene(profile?.default_scene || 'rain');
   }, [profile]);
+
+  useEffect(() => {
+    const defaultScene = profile?.default_scene || 'rain';
+    const availableKeys = scenes.map((s) => s.value);
+    if (availableKeys.includes(defaultScene)) {
+      setScene(defaultScene);
+    } else {
+      setScene('none');
+    }
+  }, [profile, scenes]);
 
   // load audio when scene changes
   useEffect(() => {
@@ -42,8 +54,9 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    if (scene === 'none' || !sceneAudios[scene]) return undefined;
-    const audio = new Audio(sceneAudios[scene]);
+    const targetScene = scenes.find((s) => s.value === scene);
+    if (!targetScene || !targetScene.url || scene === 'none') return undefined;
+    const audio = new Audio(targetScene.url);
     audio.loop = true;
     audioRef.current = audio;
     if (running) {
@@ -82,6 +95,7 @@ export default function FocusPage({ isAdmin }) {
 
   const minutes = useMemo(() => String(Math.floor(remaining / 60)).padStart(2, '0'), [remaining]);
   const seconds = useMemo(() => String(remaining % 60).padStart(2, '0'), [remaining]);
+  const selectedScene = useMemo(() => scenes.find((s) => s.value === scene), [scenes, scene]);
 
   const handleComplete = async () => {
     setRunning(false);
@@ -192,7 +206,7 @@ export default function FocusPage({ isAdmin }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500">环境音场景</p>
-                <p className="text-lg font-semibold text-slate-900">{scene}</p>
+                <p className="text-lg font-semibold text-slate-900">{selectedScene?.label || '无声'}</p>
               </div>
               <MusicalNoteIcon className="h-6 w-6 text-slate-400" />
             </div>

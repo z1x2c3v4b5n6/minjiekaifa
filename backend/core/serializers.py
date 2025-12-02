@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import Announcement, FocusSession, MoodRecord, Task, UserProfile
+from .models import AmbientSound, Announcement, FocusSession, MoodRecord, Task, UserProfile
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -108,3 +108,38 @@ class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "username", "nickname", "role", "date_joined", "total_focus_minutes", "total_sessions"]
+
+
+class AmbientSoundSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AmbientSound
+        fields = [
+            "id",
+            "name",
+            "key",
+            "url",
+            "is_published",
+            "created_at",
+            "file",
+            "file_url",
+        ]
+        read_only_fields = ["id", "key", "created_at"]
+        extra_kwargs = {
+            "file": {"write_only": True, "required": False, "allow_null": True},
+            "file_url": {"required": False, "allow_blank": True},
+        }
+
+    def get_url(self, obj):
+        request = self.context.get("request")
+        if obj.file:
+            return request.build_absolute_uri(obj.file.url) if request else obj.file.url
+        return obj.file_url
+
+    def validate(self, attrs):
+        file = attrs.get("file") or getattr(self.instance, "file", None)
+        file_url = attrs.get("file_url") or getattr(self.instance, "file_url", "")
+        if not file and not file_url:
+            raise serializers.ValidationError("请上传音频文件或提供外链地址")
+        return attrs

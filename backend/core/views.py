@@ -12,10 +12,11 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Announcement, FocusSession, MoodRecord, Task, UserProfile
+from .models import AmbientSound, Announcement, FocusSession, MoodRecord, Task, UserProfile
 from .permissions import IsAdminUserRole
 from .serializers import (
     AdminUserSerializer,
+    AmbientSoundSerializer,
     AnnouncementSerializer,
     FocusSessionSerializer,
     GardenViewSerializer,
@@ -333,3 +334,15 @@ class PublishedAnnouncementListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Announcement.objects.filter(is_published=True)
+
+
+class AmbientSoundAdminViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated, IsAdminUserRole]
+    serializer_class = AmbientSoundSerializer
+    queryset = AmbientSound.objects.all()
+
+
+class PublishedAmbientSoundViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AmbientSoundSerializer
+    queryset = AmbientSound.objects.filter(is_published=True)
