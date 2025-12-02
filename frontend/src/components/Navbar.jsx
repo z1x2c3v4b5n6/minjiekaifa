@@ -20,6 +20,7 @@ export default function Navbar({ isAdmin, role, profile, onLogout }) {
       return [
         { path: '/admin/dashboard', label: '管理员仪表盘' },
         { path: '/admin/announcements', label: '公告管理' },
+        { path: '/admin/sounds', label: '声音管理' },
         ...common,
       ];
     }

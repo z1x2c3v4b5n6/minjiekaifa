@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AdminOverviewView,
     AdminUserListView,
+    AmbientSoundAdminViewSet,
+    PublishedAmbientSoundViewSet,
     AnnouncementViewSet,
     FocusSessionViewSet,
     GardenOverviewView,
@@ -23,6 +25,8 @@ router = DefaultRouter()
 router.register(r"tasks", TaskViewSet, basename="task")
 router.register(r"sessions", FocusSessionViewSet, basename="session")
 router.register(r"admin/announcements", AnnouncementViewSet, basename="admin-announcement")
+router.register(r"admin/sounds", AmbientSoundAdminViewSet, basename="admin-sound")
+router.register(r"sounds", PublishedAmbientSoundViewSet, basename="sound")
 
 urlpatterns = [
     path("auth/register/", RegisterView.as_view()),
