@@ -128,6 +128,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
 class AmbientSoundSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
+    scene = serializers.CharField(source="key", read_only=True)
 
     class Meta:
         model = AmbientSound
@@ -135,6 +136,7 @@ class AmbientSoundSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "key",
+            "scene",
             "url",
             "is_published",
             "created_at",

@@ -22,18 +22,25 @@ export default function FocusPage({ isAdmin }) {
   }, []);
 
   useEffect(() => {
-    api.get('/sounds/').then((res) => setAvailableSounds(res.data));
+    const allowedScenes = ['none', 'meditation', 'ktv'];
+    api.get('/sounds/').then((res) => {
+      const filtered = res.data.filter((sound) => allowedScenes.includes(sound.scene || sound.key));
+      if (!filtered.find((sound) => (sound.scene || sound.key) === 'none')) {
+        filtered.unshift({ id: 'none', name: '无声', scene: 'none', url: '' });
+      }
+      setAvailableSounds(filtered);
+    });
   }, []);
 
   const scenes = useMemo(() => {
     const palette = ['from-sky-100 to-slate-100', 'from-cyan-100 to-blue-100', 'from-amber-100 to-orange-100', 'from-purple-100 to-indigo-100'];
     const dynamic = availableSounds.map((sound, idx) => ({
       label: sound.name,
-      value: sound.key,
+      value: sound.scene || sound.key,
       url: sound.url,
       color: palette[idx % palette.length],
     }));
-    return [{ label: '无声 None', value: 'none', color: 'from-white to-white' }, ...dynamic];
+    return dynamic;
   }, [availableSounds]);
 
   const focusDuration = useMemo(() => (profile?.default_focus_minutes || 25) * 60, [profile]);
