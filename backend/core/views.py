@@ -12,13 +12,14 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AmbientSound, Announcement, FocusSession, MoodRecord, Task, UserProfile
+from .models import AmbientSound, Announcement, FocusSession, GardenItem, MoodRecord, Task, UserProfile
 from .permissions import IsAdminUserRole
 from .serializers import (
     AdminUserSerializer,
     AmbientSoundSerializer,
     AnnouncementSerializer,
     FocusSessionSerializer,
+    GardenItemSerializer,
     GardenViewSerializer,
     MoodRecordSerializer,
     TaskSerializer,
@@ -33,7 +34,7 @@ class RegisterView(APIView):
         username = request.data.get("username")
         password = request.data.get("password")
         nickname = request.data.get("nickname", "")
-        role = request.data.get("role", "user")
+        role = "user"
         if not username or not password:
             return Response({"detail": "用户名和密码必填"}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(username=username).exists():
@@ -135,7 +136,16 @@ class FocusSessionViewSet(viewsets.ModelViewSet):
         return FocusSession.objects.filter(user=self.request.user).order_by("-created_at")
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        session = serializer.save(user=self.request.user)
+        item_type = "tree" if session.is_completed else "flower"
+        GardenItem.objects.create(
+            user=self.request.user,
+            date=timezone.localdate(),
+            category=session.task.category if session.task else "",
+            item_type=item_type,
+            is_dead=not session.is_completed,
+            session=session,
+        )
 
 
 class TodayStatsView(APIView):
@@ -271,6 +281,30 @@ class GardenOverviewView(APIView):
                 "total_pomodoros": total_pomodoros,
             }
         )
+        return Response(serializer.data)
+
+
+class GardenItemListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        range_param = request.query_params.get("range", "week")
+        today = timezone.localdate()
+        if range_param == "day":
+            start_date = today
+            end_date = today
+        elif range_param == "month":
+            start_date = today.replace(day=1)
+            end_date = (start_date + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        else:
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=6)
+
+        items = (
+            GardenItem.objects.filter(user=request.user, date__gte=start_date, date__lte=end_date)
+            .order_by("-created_at")
+        )
+        serializer = GardenItemSerializer(items, many=True)
         return Response(serializer.data)
 
 

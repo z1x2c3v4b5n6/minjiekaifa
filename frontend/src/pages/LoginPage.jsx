@@ -23,12 +23,10 @@ export default function LoginPage() {
         return;
       }
       if (mode === 'register') {
-        // RegisterView 期望的字段：username、password，可选 nickname / role
         await api.post('/auth/register/', {
           username: form.username,
           password: form.password,
           nickname: form.nickname,
-          role: 'user',
         });
       }
       const res = await api.post('/auth/login/', {
@@ -49,11 +47,10 @@ export default function LoginPage() {
     const username = type === 'admin' ? 'admin_demo' : 'demo_user';
     const password = 'timegarden123';
     const nickname = type === 'admin' ? 'Admin 管理员' : '花园友人';
-    const role = type === 'admin' ? 'admin' : 'user';
     setForm({ username, password, confirm: password, nickname });
     setMode('login');
     try {
-      await api.post('/auth/register/', { username, password, nickname, role });
+      await api.post('/auth/register/', { username, password, nickname });
     } catch (e) {
       // ignore duplicate
     }

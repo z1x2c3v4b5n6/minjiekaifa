@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import AmbientSound, Announcement, FocusSession, MoodRecord, Task, UserProfile
+from .models import AmbientSound, Announcement, FocusSession, GardenItem, MoodRecord, Task, UserProfile
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -90,6 +90,13 @@ class GardenViewSerializer(serializers.Serializer):
     current_exp = serializers.IntegerField()
     next_level_exp = serializers.IntegerField()
     total_pomodoros = serializers.IntegerField()
+
+
+class GardenItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GardenItem
+        fields = ["id", "date", "category", "item_type", "is_dead", "session", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class AnnouncementSerializer(serializers.ModelSerializer):

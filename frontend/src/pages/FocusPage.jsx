@@ -11,6 +11,8 @@ export default function FocusPage({ isAdmin }) {
   const [scene, setScene] = useState(profile?.default_scene || 'rain');
   const [availableSounds, setAvailableSounds] = useState([]);
   const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState('focus');
+  const [round, setRound] = useState(1);
   const [remaining, setRemaining] = useState((profile?.default_focus_minutes || 25) * 60);
   const timerRef = useRef(null);
   const audioRef = useRef(null);
@@ -34,9 +36,17 @@ export default function FocusPage({ isAdmin }) {
     return [{ label: '无声 None', value: 'none', color: 'from-white to-white' }, ...dynamic];
   }, [availableSounds]);
 
-  useEffect(() => {
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
+  const phaseDurations = useMemo(() => {
+    return {
+      focus: profile?.default_focus_minutes || 25,
+      shortBreak: profile?.default_short_break_minutes || 5,
+      longBreak: profile?.default_long_break_minutes || 15,
+    };
   }, [profile]);
+
+  useEffect(() => {
+    setRemaining(phaseDurations[phase] * 60);
+  }, [phase, phaseDurations]);
 
   useEffect(() => {
     const defaultScene = profile?.default_scene || 'rain';
@@ -55,7 +65,7 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current = null;
     }
     const targetScene = scenes.find((s) => s.value === scene);
-    if (!targetScene || !targetScene.url || scene === 'none') return undefined;
+    if (phase !== 'focus' || !targetScene || !targetScene.url || scene === 'none') return undefined;
     const audio = new Audio(targetScene.url);
     audio.loop = true;
     audioRef.current = audio;
@@ -65,7 +75,7 @@ export default function FocusPage({ isAdmin }) {
     return () => {
       audio.pause();
     };
-  }, [scene]);
+  }, [scene, phase]);
 
   useEffect(() => {
     if (!running) return;
@@ -85,17 +95,35 @@ export default function FocusPage({ isAdmin }) {
   // control audio play/pause with running state
   useEffect(() => {
     if (!audioRef.current) return;
-    if (running && scene !== 'none') {
+    if (running && scene !== 'none' && phase === 'focus') {
       audioRef.current.play().catch(() => {});
     } else {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-  }, [running, scene]);
+  }, [running, scene, phase]);
 
   const minutes = useMemo(() => String(Math.floor(remaining / 60)).padStart(2, '0'), [remaining]);
   const seconds = useMemo(() => String(remaining % 60).padStart(2, '0'), [remaining]);
   const selectedScene = useMemo(() => scenes.find((s) => s.value === scene), [scenes, scene]);
+  const phaseLabel = phase === 'focus' ? '专注时间' : phase === 'shortBreak' ? '短休' : '长休';
+  const handleAdvancePhase = () => {
+    if (phase === 'focus') {
+      if (round >= 4) {
+        setPhase('longBreak');
+      } else {
+        setPhase('shortBreak');
+      }
+      return;
+    }
+    if (phase === 'shortBreak') {
+      setPhase('focus');
+      setRound((prev) => Math.min(prev + 1, 4));
+      return;
+    }
+    setPhase('focus');
+    setRound(1);
+  };
 
   const handleComplete = async () => {
     setRunning(false);
@@ -103,17 +131,19 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    try {
-      await api.post('/sessions/', {
-        task: selectedTask ? selectedTask.id : null,
-        duration_minutes: profile?.default_focus_minutes || 25,
-        is_completed: true,
-        interrupted_reason: '',
-      });
-    } catch (err) {
-      console.error(err);
+    if (phase === 'focus') {
+      try {
+        await api.post('/sessions/', {
+          task: selectedTask ? selectedTask.id : null,
+          duration_minutes: phaseDurations.focus,
+          is_completed: true,
+          interrupted_reason: '',
+        });
+      } catch (err) {
+        console.error(err);
+      }
     }
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
+    handleAdvancePhase();
   };
 
   const handleStop = async () => {
@@ -123,13 +153,16 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    await api.post('/sessions/', {
-      task: selectedTask ? selectedTask.id : null,
-      duration_minutes: Math.round((remaining / 60) * 10) / 10,
-      is_completed: false,
-      interrupted_reason: '手动结束',
-    });
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
+    if (phase === 'focus') {
+      await api.post('/sessions/', {
+        task: selectedTask ? selectedTask.id : null,
+        duration_minutes: Math.round((remaining / 60) * 10) / 10,
+        is_completed: false,
+        interrupted_reason: '手动结束',
+      });
+    }
+    setPhase('focus');
+    setRound(1);
   };
 
   return (
@@ -153,16 +186,22 @@ export default function FocusPage({ isAdmin }) {
               {minutes}:{seconds}
             </div>
           </div>
+          <div className="text-center">
+            <p className="text-sm text-slate-500">{phaseLabel}</p>
+            <p className="text-lg font-semibold text-slate-900">第 {round}/4 个番茄</p>
+          </div>
           <div className="flex gap-3">
             {!running ? (
               <button
                 onClick={() => {
-                  setRemaining((profile?.default_focus_minutes || 25) * 60);
+                  if (remaining <= 0) {
+                    setRemaining(phaseDurations[phase] * 60);
+                  }
                   setRunning(true);
                 }}
                 className={`px-6 py-3 rounded-full text-white font-semibold shadow ${isAdmin ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
               >
-                开始专注
+                {phase === 'focus' ? '开始专注' : '开始休息'}
               </button>
             ) : (
               <>
@@ -201,6 +240,9 @@ export default function FocusPage({ isAdmin }) {
                 </option>
               ))}
             </select>
+            {phase !== 'focus' && (
+              <p className="text-xs text-slate-400 mt-2">休息阶段不计入番茄统计。</p>
+            )}
           </div>
           <div className="card p-4">
             <div className="flex items-center justify-between">
