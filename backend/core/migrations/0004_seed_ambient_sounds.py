@@ -9,17 +9,17 @@ def seed_sounds(apps, schema_editor):
         {
             "name": "雨声 Rain",
             "key": "rain",
-            "file_url": "https://cdn.pixabay.com/download/audio/2021/09/01/audio_5702e0782a.mp3?filename=light-rain-ambient-113340.mp3",
+            "file_url": "/media/sounds/rain.mp3",
         },
         {
             "name": "海边 Sea",
             "key": "sea",
-            "file_url": "https://cdn.pixabay.com/download/audio/2021/08/04/audio_5d6e94a42f.mp3?filename=ocean-waves-hit-the-beach-10152.mp3",
+            "file_url": "/media/sounds/sea.mp3",
         },
         {
             "name": "咖啡馆 Cafe",
             "key": "cafe",
-            "file_url": "https://cdn.pixabay.com/download/audio/2022/03/15/audio_399fcbd319.mp3?filename=coffeeshop-ambience-20965.mp3",
+            "file_url": "/media/sounds/cafe.mp3",
         },
     ]
     for data in defaults:

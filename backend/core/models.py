@@ -64,7 +64,7 @@ class FocusSession(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sessions")
     task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.SET_NULL, related_name="sessions")
-    duration_minutes = models.IntegerField()
+    duration_minutes = models.DecimalField(max_digits=6, decimal_places=2)
     is_completed = models.BooleanField(default=True)
     interrupted_reason = models.CharField(max_length=200, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
@@ -73,6 +73,24 @@ class FocusSession(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.duration_minutes}m"
+
+
+class GardenItem(models.Model):
+    """花园可视化条目"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="garden_items")
+    session = models.OneToOneField(FocusSession, on_delete=models.CASCADE, related_name="garden_item")
+    date = models.DateField(default=timezone.now)
+    category = models.CharField(max_length=100, blank=True)
+    item_type = models.CharField(max_length=50, default="focus")
+    is_dead = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.item_type} - {self.date}"
 
 
 class MoodRecord(models.Model):

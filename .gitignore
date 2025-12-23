@@ -1,0 +1,8 @@
+release/
+backend/dist/
+backend/build/
+backend/static/app/
+backend/media/
+**/*.mp3
+**/*.wav
+**/*.exe

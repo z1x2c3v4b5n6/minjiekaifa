@@ -6,19 +6,21 @@ from django.db import models
 from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AmbientSound, Announcement, FocusSession, MoodRecord, Task, UserProfile
+from .models import AmbientSound, Announcement, FocusSession, GardenItem, MoodRecord, Task, UserProfile
 from .permissions import IsAdminUserRole
 from .serializers import (
     AdminUserSerializer,
     AmbientSoundSerializer,
     AnnouncementSerializer,
     FocusSessionSerializer,
+    GardenItemSerializer,
     GardenViewSerializer,
     MoodRecordSerializer,
     TaskSerializer,
@@ -33,13 +35,12 @@ class RegisterView(APIView):
         username = request.data.get("username")
         password = request.data.get("password")
         nickname = request.data.get("nickname", "")
-        role = request.data.get("role", "user")
         if not username or not password:
             return Response({"detail": "用户名和密码必填"}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(username=username).exists():
             return Response({"detail": "用户名已存在"}, status=status.HTTP_400_BAD_REQUEST)
         user = User.objects.create_user(username=username, password=password)
-        UserProfile.objects.create(user=user, nickname=nickname, role=role)
+        UserProfile.objects.create(user=user, nickname=nickname, role="user")
         token, _ = Token.objects.get_or_create(user=user)
         return Response(
             {
@@ -47,7 +48,7 @@ class RegisterView(APIView):
                 "user": {
                     "id": user.id,
                     "nickname": nickname or username,
-                    "role": role,
+                    "role": "user",
                 },
             }
         )
@@ -135,7 +136,18 @@ class FocusSessionViewSet(viewsets.ModelViewSet):
         return FocusSession.objects.filter(user=self.request.user).order_by("-created_at")
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        session = serializer.save(user=self.request.user)
+        task = session.task
+        GardenItem.objects.get_or_create(
+            session=session,
+            defaults={
+                "user": self.request.user,
+                "date": session.created_at.date() if session.created_at else timezone.now().date(),
+                "category": task.category if task else "",
+                "item_type": "focus",
+                "is_dead": not session.is_completed,
+            },
+        )
 
 
 class TodayStatsView(APIView):
@@ -248,30 +260,91 @@ class GardenOverviewView(APIView):
 
     def get(self, request):
         sessions = FocusSession.objects.filter(user=request.user)
-        total_pomodoros = sessions.filter(is_completed=True).count()
-        exp_per_pomodoro = 10
-        current_exp = total_pomodoros * exp_per_pomodoro
-        level = current_exp // 200 + 1
-        next_level_exp = level * 200
-        if level < 2:
-            stage = "幼苗期"
-        elif level < 4:
-            stage = "成长期"
-        elif level < 6:
-            stage = "茂盛期"
-        else:
-            stage = "繁盛期"
+        completed_count = sessions.filter(is_completed=True).count()
+        aborted_count = sessions.filter(is_completed=False).count()
+        total_sessions = sessions.count()
+
+        now = timezone.now()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_focus_minutes = sessions.filter(created_at__gte=start_of_day).aggregate(
+            total=Sum("duration_minutes")
+        )["total"] or 0
+
+        session_dates = set(sessions.dates("created_at", "day", order="DESC"))
+        streak_days = 0
+        current_day = now.date()
+        while current_day in session_dates:
+            streak_days += 1
+            current_day -= timedelta(days=1)
 
         serializer = GardenViewSerializer(
             {
-                "stage": stage,
-                "level": level,
-                "current_exp": current_exp,
-                "next_level_exp": next_level_exp,
-                "total_pomodoros": total_pomodoros,
+                "total_sessions": total_sessions,
+                "completed_count": completed_count,
+                "aborted_count": aborted_count,
+                "streak_days": streak_days,
+                "today_focus_minutes": today_focus_minutes,
             }
         )
         return Response(serializer.data)
+
+
+class GardenItemListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        range_param = request.query_params.get("range", "day")
+        date_param = request.query_params.get("date")
+        target_date = parse_date(date_param) if date_param else timezone.localdate()
+        if not target_date:
+            return Response({"detail": "无效日期格式"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if range_param == "day":
+            start_date = end_date = target_date
+        elif range_param == "week":
+            start_date = target_date - timedelta(days=target_date.isoweekday() - 1)
+            end_date = start_date + timedelta(days=6)
+        elif range_param == "month":
+            start_date = target_date.replace(day=1)
+            next_month = (start_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = next_month - timedelta(days=1)
+        else:
+            return Response({"detail": "range 仅支持 day/week/month"}, status=status.HTTP_400_BAD_REQUEST)
+
+        items = GardenItem.objects.filter(
+            user=request.user, date__gte=start_date, date__lte=end_date
+        ).order_by("-created_at")
+        serializer = GardenItemSerializer(items, many=True)
+        return Response(serializer.data)
+
+
+class GardenItemSummaryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        range_param = request.query_params.get("range", "week")
+        date_param = request.query_params.get("date")
+        target_date = parse_date(date_param) if date_param else timezone.localdate()
+        if not target_date:
+            return Response({"detail": "无效日期格式"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if range_param == "week":
+            start_date = target_date - timedelta(days=target_date.isoweekday() - 1)
+            end_date = start_date + timedelta(days=6)
+        elif range_param == "month":
+            start_date = target_date.replace(day=1)
+            next_month = (start_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+            end_date = next_month - timedelta(days=1)
+        else:
+            return Response({"detail": "range 仅支持 week/month"}, status=status.HTTP_400_BAD_REQUEST)
+
+        items = (
+            GardenItem.objects.filter(user=request.user, date__gte=start_date, date__lte=end_date)
+            .values("date")
+            .annotate(total=Count("id"), dead=Count("id", filter=models.Q(is_dead=True)))
+            .order_by("date")
+        )
+        return Response(items)
 
 
 class AdminOverviewView(APIView):
