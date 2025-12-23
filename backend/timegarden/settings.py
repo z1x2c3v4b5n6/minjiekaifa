@@ -2,9 +2,13 @@ import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = Path(os.environ.get("TIMEGARDEN_DATA_DIR", BASE_DIR))
+if not DATA_DIR.is_absolute():
+    DATA_DIR = BASE_DIR / DATA_DIR
+STATIC_APP_DIR = Path(os.environ.get("TIMEGARDEN_STATIC_DIR", BASE_DIR / "static" / "app"))
 
 SECRET_KEY = 'dev-secret-key'
-DEBUG = True
+DEBUG = os.environ.get("TIMEGARDEN_DEBUG", "true").lower() == "true"
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -23,6 +27,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -54,7 +59,7 @@ WSGI_APPLICATION = 'timegarden.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': DATA_DIR / 'db.sqlite3',
     }
 }
 
@@ -65,9 +70,11 @@ TIME_ZONE = 'Asia/Shanghai'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [STATIC_APP_DIR]
+STATIC_ROOT = DATA_DIR / "staticfiles"
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = DATA_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

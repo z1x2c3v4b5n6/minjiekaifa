@@ -11,6 +11,8 @@ export default function FocusPage({ isAdmin }) {
   const [scene, setScene] = useState(profile?.default_scene || 'rain');
   const [availableSounds, setAvailableSounds] = useState([]);
   const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState('focus');
+  const [focusCount, setFocusCount] = useState(0);
   const [remaining, setRemaining] = useState((profile?.default_focus_minutes || 25) * 60);
   const timerRef = useRef(null);
   const audioRef = useRef(null);
@@ -34,9 +36,9 @@ export default function FocusPage({ isAdmin }) {
     return [{ label: '无声 None', value: 'none', color: 'from-white to-white' }, ...dynamic];
   }, [availableSounds]);
 
-  useEffect(() => {
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
-  }, [profile]);
+  const focusDuration = useMemo(() => (profile?.default_focus_minutes || 25) * 60, [profile]);
+  const shortBreakDuration = useMemo(() => (profile?.default_short_break_minutes || 5) * 60, [profile]);
+  const longBreakDuration = useMemo(() => (profile?.default_long_break_minutes || 15) * 60, [profile]);
 
   useEffect(() => {
     const defaultScene = profile?.default_scene || 'rain';
@@ -47,6 +49,16 @@ export default function FocusPage({ isAdmin }) {
       setScene('none');
     }
   }, [profile, scenes]);
+
+  useEffect(() => {
+    if (phase === 'focus') {
+      setRemaining(focusDuration);
+    } else if (phase === 'short_break') {
+      setRemaining(shortBreakDuration);
+    } else {
+      setRemaining(longBreakDuration);
+    }
+  }, [phase, focusDuration, shortBreakDuration, longBreakDuration]);
 
   // load audio when scene changes
   useEffect(() => {
@@ -96,6 +108,18 @@ export default function FocusPage({ isAdmin }) {
   const minutes = useMemo(() => String(Math.floor(remaining / 60)).padStart(2, '0'), [remaining]);
   const seconds = useMemo(() => String(remaining % 60).padStart(2, '0'), [remaining]);
   const selectedScene = useMemo(() => scenes.find((s) => s.value === scene), [scenes, scene]);
+  const phaseLabel = useMemo(() => {
+    if (phase === 'short_break') return '短休息';
+    if (phase === 'long_break') return '长休息';
+    return '专注';
+  }, [phase]);
+  const phaseDuration = useMemo(() => {
+    if (phase === 'short_break') return shortBreakDuration;
+    if (phase === 'long_break') return longBreakDuration;
+    return focusDuration;
+  }, [phase, focusDuration, shortBreakDuration, longBreakDuration]);
+
+  const focusCycles = 4;
 
   const handleComplete = async () => {
     setRunning(false);
@@ -103,17 +127,27 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    try {
-      await api.post('/sessions/', {
-        task: selectedTask ? selectedTask.id : null,
-        duration_minutes: profile?.default_focus_minutes || 25,
-        is_completed: true,
-        interrupted_reason: '',
-      });
-    } catch (err) {
-      console.error(err);
+    if (phase === 'focus') {
+      try {
+        await api.post('/sessions/', {
+          task: selectedTask ? selectedTask.id : null,
+          duration_minutes: (profile?.default_focus_minutes || 25).toFixed(2),
+          is_completed: true,
+          interrupted_reason: '',
+        });
+      } catch (err) {
+        console.error(err);
+      }
+      const nextCount = focusCount + 1;
+      setFocusCount(nextCount);
+      if (nextCount % focusCycles === 0) {
+        setPhase('long_break');
+      } else {
+        setPhase('short_break');
+      }
+    } else {
+      setPhase('focus');
     }
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
   };
 
   const handleStop = async () => {
@@ -123,13 +157,16 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    await api.post('/sessions/', {
-      task: selectedTask ? selectedTask.id : null,
-      duration_minutes: Math.round((remaining / 60) * 10) / 10,
-      is_completed: false,
-      interrupted_reason: '手动结束',
-    });
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
+    if (phase === 'focus') {
+      const elapsedMinutes = Math.max(0, (focusDuration - remaining) / 60);
+      await api.post('/sessions/', {
+        task: selectedTask ? selectedTask.id : null,
+        duration_minutes: elapsedMinutes.toFixed(2),
+        is_completed: false,
+        interrupted_reason: '手动结束',
+      });
+    }
+    setPhase('focus');
   };
 
   return (
@@ -153,16 +190,19 @@ export default function FocusPage({ isAdmin }) {
               {minutes}:{seconds}
             </div>
           </div>
+          <p className="text-sm text-slate-500">阶段：{phaseLabel}</p>
           <div className="flex gap-3">
             {!running ? (
               <button
                 onClick={() => {
-                  setRemaining((profile?.default_focus_minutes || 25) * 60);
+                  if (remaining <= 0) {
+                    setRemaining(phaseDuration);
+                  }
                   setRunning(true);
                 }}
                 className={`px-6 py-3 rounded-full text-white font-semibold shadow ${isAdmin ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
               >
-                开始专注
+                {phase === 'focus' ? '开始专注' : '开始休息'}
               </button>
             ) : (
               <>
@@ -176,7 +216,7 @@ export default function FocusPage({ isAdmin }) {
                   onClick={handleStop}
                   className="px-4 py-3 rounded-full bg-white/80 text-slate-700 font-semibold shadow border"
                 >
-                  结束并保存
+                  {phase === 'focus' ? '结束并保存' : '跳过休息'}
                 </button>
               </>
             )}

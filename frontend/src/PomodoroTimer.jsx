@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 const DEFAULT_SECONDS = 10 // 演示用 10 秒
 const DEMO_MINUTES = 25 // 提交给后端的分钟数，演示用 25 分钟
 

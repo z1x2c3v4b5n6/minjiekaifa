@@ -23,12 +23,11 @@ export default function LoginPage() {
         return;
       }
       if (mode === 'register') {
-        // RegisterView 期望的字段：username、password，可选 nickname / role
+        // RegisterView 期望的字段：username、password，可选 nickname
         await api.post('/auth/register/', {
           username: form.username,
           password: form.password,
           nickname: form.nickname,
-          role: 'user',
         });
       }
       const res = await api.post('/auth/login/', {
@@ -49,20 +48,21 @@ export default function LoginPage() {
     const username = type === 'admin' ? 'admin_demo' : 'demo_user';
     const password = 'timegarden123';
     const nickname = type === 'admin' ? 'Admin 管理员' : '花园友人';
-    const role = type === 'admin' ? 'admin' : 'user';
     setForm({ username, password, confirm: password, nickname });
     setMode('login');
-    try {
-      await api.post('/auth/register/', { username, password, nickname, role });
-    } catch (e) {
-      // ignore duplicate
+    if (type === 'user') {
+      try {
+        await api.post('/auth/register/', { username, password, nickname });
+      } catch (e) {
+        // ignore duplicate
+      }
     }
     try {
       const res = await api.post('/auth/login/', { username, password });
       login(res.data.token, res.data.user);
       navigate('/');
     } catch (err) {
-      setError('快速登录失败，请手动注册');
+      setError(type === 'admin' ? '管理员账号不存在，请先预置管理员账号' : '快速登录失败，请手动注册');
     }
   };
 
@@ -88,7 +88,7 @@ export default function LoginPage() {
                 onClick={() => quickAccess('admin')}
                 className="w-full bg-white/90 text-indigo-700 font-semibold rounded-xl px-4 py-3 hover:bg-white"
               >
-                管理员体验账号
+                管理员登录（需预置）
               </button>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function LoginPage() {
               {loading ? '处理中...' : mode === 'login' ? '登录' : '注册'}
             </button>
           </form>
-          <p className="text-xs text-slate-400 mt-4">建议先点击左侧一键体验，会自动创建并登录演示账号。</p>
+          <p className="text-xs text-slate-400 mt-4">管理员账号需由运维使用 create_admin 命令预置。</p>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import AmbientSound, Announcement, FocusSession, MoodRecord, Task, UserProfile
+from .models import AmbientSound, Announcement, FocusSession, GardenItem, MoodRecord, Task, UserProfile
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -85,11 +85,27 @@ class MoodRecordSerializer(serializers.ModelSerializer):
 
 
 class GardenViewSerializer(serializers.Serializer):
-    stage = serializers.CharField()
-    level = serializers.IntegerField()
-    current_exp = serializers.IntegerField()
-    next_level_exp = serializers.IntegerField()
-    total_pomodoros = serializers.IntegerField()
+    total_sessions = serializers.IntegerField()
+    completed_count = serializers.IntegerField()
+    aborted_count = serializers.IntegerField()
+    streak_days = serializers.IntegerField(required=False)
+    today_focus_minutes = serializers.DecimalField(required=False, max_digits=8, decimal_places=2)
+
+
+class GardenItemSerializer(serializers.ModelSerializer):
+    session_id = serializers.IntegerField(source="session.id", read_only=True)
+
+    class Meta:
+        model = GardenItem
+        fields = [
+            "id",
+            "date",
+            "category",
+            "item_type",
+            "is_dead",
+            "session_id",
+            "created_at",
+        ]
 
 
 class AnnouncementSerializer(serializers.ModelSerializer):
@@ -102,7 +118,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
 class AdminUserSerializer(serializers.ModelSerializer):
     nickname = serializers.CharField(source="profile.nickname", read_only=True)
     role = serializers.CharField(source="profile.role", read_only=True)
-    total_focus_minutes = serializers.IntegerField(read_only=True)
+    total_focus_minutes = serializers.DecimalField(read_only=True, max_digits=8, decimal_places=2)
     total_sessions = serializers.IntegerField(read_only=True)
 
     class Meta:
