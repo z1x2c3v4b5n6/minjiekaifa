@@ -1,10 +1,12 @@
 from datetime import timedelta
+from pathlib import Path
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
+from django.conf import settings
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import generics, permissions, status, viewsets
@@ -26,6 +28,21 @@ from .serializers import (
     TaskSerializer,
     UserProfileSerializer,
 )
+
+
+def map_item_type(category: str, is_dead: bool) -> str:
+    mapping = {
+        "study": "tree",
+        "学习": "tree",
+        "work": "flower",
+        "工作": "flower",
+        "life": "stone",
+        "生活": "stone",
+    }
+    base = mapping.get((category or "").strip().lower(), "tree")
+    if is_dead:
+        return f"dead_{base}"
+    return base
 
 
 class RegisterView(APIView):
@@ -138,13 +155,15 @@ class FocusSessionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         session = serializer.save(user=self.request.user)
         task = session.task
+        category = task.category if task else ""
+        item_type = map_item_type(category, not session.is_completed)
         GardenItem.objects.get_or_create(
             session=session,
             defaults={
                 "user": self.request.user,
                 "date": session.created_at.date() if session.created_at else timezone.now().date(),
-                "category": task.category if task else "",
-                "item_type": "focus",
+                "category": category,
+                "item_type": item_type,
                 "is_dead": not session.is_completed,
             },
         )
@@ -341,10 +360,43 @@ class GardenItemSummaryView(APIView):
         items = (
             GardenItem.objects.filter(user=request.user, date__gte=start_date, date__lte=end_date)
             .values("date")
-            .annotate(total=Count("id"), dead=Count("id", filter=models.Q(is_dead=True)))
+            .annotate(
+                total=Count("id"),
+                completed=Count("id", filter=models.Q(is_dead=False)),
+                aborted=Count("id", filter=models.Q(is_dead=True)),
+            )
             .order_by("date")
         )
-        return Response(items)
+        category_breakdown = (
+            GardenItem.objects.filter(user=request.user, date__gte=start_date, date__lte=end_date)
+            .values("date", "category")
+            .annotate(
+                total=Count("id"),
+                completed=Count("id", filter=models.Q(is_dead=False)),
+                aborted=Count("id", filter=models.Q(is_dead=True)),
+            )
+            .order_by("date")
+        )
+        summary_map = {entry["date"]: dict(entry, by_category={}) for entry in items}
+        for entry in category_breakdown:
+            date_key = entry["date"]
+            summary = summary_map.setdefault(
+                date_key,
+                {
+                    "date": date_key,
+                    "total": 0,
+                    "completed": 0,
+                    "aborted": 0,
+                    "by_category": {},
+                },
+            )
+            category_name = entry["category"] or "未分类"
+            summary["by_category"][category_name] = {
+                "total": entry["total"],
+                "completed": entry["completed"],
+                "aborted": entry["aborted"],
+            }
+        return Response([summary_map[key] for key in sorted(summary_map.keys())])
 
 
 class AdminOverviewView(APIView):
@@ -418,4 +470,26 @@ class AmbientSoundAdminViewSet(viewsets.ModelViewSet):
 class PublishedAmbientSoundViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = AmbientSoundSerializer
-    queryset = AmbientSound.objects.filter(is_published=True)
+
+    allowed_scenes = ["none", "meditation", "ktv"]
+
+    def get_queryset(self):
+        return AmbientSound.objects.filter(is_published=True, key__in=self.allowed_scenes)
+
+    def list(self, request, *args, **kwargs):
+        media_root = Path(settings.MEDIA_ROOT)
+        media_url = settings.MEDIA_URL or "/media/"
+        sounds = []
+        for sound in self.get_queryset():
+            if sound.key == "none":
+                sounds.append(sound)
+                continue
+            if sound.file and Path(sound.file.path).exists():
+                sounds.append(sound)
+                continue
+            if sound.file_url and sound.file_url.startswith(media_url):
+                relative_path = sound.file_url.replace(media_url, "").lstrip("/")
+                if (media_root / relative_path).exists():
+                    sounds.append(sound)
+        serializer = self.get_serializer(sounds, many=True)
+        return Response(serializer.data)

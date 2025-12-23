@@ -35,8 +35,12 @@ export default function LoginPage() {
         password: form.password,
       });
       login(res.data.token, res.data.user);
-      const redirect = location.state?.from?.pathname || '/';
-      navigate(redirect);
+      if (res.data.user?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        const redirect = location.state?.from?.pathname || '/';
+        navigate(redirect);
+      }
     } catch (err) {
       setError(err.response?.data?.detail || '操作失败');
     } finally {
@@ -60,7 +64,11 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login/', { username, password });
       login(res.data.token, res.data.user);
-      navigate('/');
+      if (res.data.user?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       setError(type === 'admin' ? '管理员账号不存在，请先预置管理员账号' : '快速登录失败，请手动注册');
     }
