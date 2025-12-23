@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -101,3 +103,56 @@ class Announcement(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class AmbientSound(models.Model):
+    """可供前端播放的环境音资源"""
+
+    name = models.CharField(max_length=200)
+    key = models.SlugField(max_length=120, unique=True, blank=True)
+    file = models.FileField(upload_to="sounds/", blank=True, null=True)
+    file_url = models.URLField(blank=True)
+    is_published = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = f"sound-{uuid4().hex[:8]}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class GardenItem(models.Model):
+    """花园可视化元素"""
+
+    ITEM_TYPES = (
+        ("tree", "树"),
+        ("flower", "花"),
+        ("grass", "草"),
+    )
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="garden_items")
+    date = models.DateField()
+    category = models.CharField(max_length=100, blank=True)
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPES, default="tree")
+    is_dead = models.BooleanField(default=False)
+    session = models.ForeignKey(
+        FocusSession,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="garden_items",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        status = "dead" if self.is_dead else "alive"
+        return f"{self.user.username} {self.item_type} {status}"

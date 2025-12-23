@@ -5,6 +5,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({ nickname: '', default_focus_minutes: 25, default_short_break_minutes: 5, default_long_break_minutes: 15, default_scene: 'rain' });
   const [saving, setSaving] = useState(false);
+  const [sounds, setSounds] = useState([]);
 
   const fetchProfile = async () => {
     try {
@@ -24,6 +25,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfile();
+    api.get('/sounds/').then((res) => setSounds(res.data));
   }, []);
 
   const saveProfile = async (e) => {
@@ -114,9 +116,11 @@ export default function ProfilePage() {
                   className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2"
                 >
                   <option value="none">无声</option>
-                  <option value="rain">雨声</option>
-                  <option value="sea">海边</option>
-                  <option value="cafe">咖啡店</option>
+                  {sounds.map((sound) => (
+                    <option key={sound.key} value={sound.key}>
+                      {sound.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <button

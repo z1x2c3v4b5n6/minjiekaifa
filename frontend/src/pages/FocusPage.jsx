@@ -4,25 +4,15 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../App.jsx';
 import api from '../api.js';
 
-const scenes = [
-  { label: '无声 None', value: 'none', color: 'from-white to-white' },
-  { label: '雨声 Rain', value: 'rain', color: 'from-sky-100 to-slate-100' },
-  { label: '海边 Sea', value: 'sea', color: 'from-cyan-100 to-blue-100' },
-  { label: '咖啡馆 Cafe', value: 'cafe', color: 'from-amber-100 to-orange-100' },
-];
-
-const sceneAudios = {
-  rain: 'https://cdn.pixabay.com/download/audio/2021/09/01/audio_5702e0782a.mp3?filename=light-rain-ambient-113340.mp3',
-  sea: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_5d6e94a42f.mp3?filename=ocean-waves-hit-the-beach-10152.mp3',
-  cafe: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_399fcbd319.mp3?filename=coffeeshop-ambience-20965.mp3',
-};
-
 export default function FocusPage({ isAdmin }) {
   const { profile } = useContext(AuthContext);
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [scene, setScene] = useState(profile?.default_scene || 'rain');
+  const [availableSounds, setAvailableSounds] = useState([]);
   const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState('focus');
+  const [round, setRound] = useState(1);
   const [remaining, setRemaining] = useState((profile?.default_focus_minutes || 25) * 60);
   const timerRef = useRef(null);
   const audioRef = useRef(null);
@@ -32,9 +22,41 @@ export default function FocusPage({ isAdmin }) {
   }, []);
 
   useEffect(() => {
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
-    setScene(profile?.default_scene || 'rain');
+    api.get('/sounds/').then((res) => setAvailableSounds(res.data));
+  }, []);
+
+  const scenes = useMemo(() => {
+    const palette = ['from-sky-100 to-slate-100', 'from-cyan-100 to-blue-100', 'from-amber-100 to-orange-100', 'from-purple-100 to-indigo-100'];
+    const dynamic = availableSounds.map((sound, idx) => ({
+      label: sound.name,
+      value: sound.key,
+      url: sound.url,
+      color: palette[idx % palette.length],
+    }));
+    return [{ label: '无声 None', value: 'none', color: 'from-white to-white' }, ...dynamic];
+  }, [availableSounds]);
+
+  const phaseDurations = useMemo(() => {
+    return {
+      focus: profile?.default_focus_minutes || 25,
+      shortBreak: profile?.default_short_break_minutes || 5,
+      longBreak: profile?.default_long_break_minutes || 15,
+    };
   }, [profile]);
+
+  useEffect(() => {
+    setRemaining(phaseDurations[phase] * 60);
+  }, [phase, phaseDurations]);
+
+  useEffect(() => {
+    const defaultScene = profile?.default_scene || 'rain';
+    const availableKeys = scenes.map((s) => s.value);
+    if (availableKeys.includes(defaultScene)) {
+      setScene(defaultScene);
+    } else {
+      setScene('none');
+    }
+  }, [profile, scenes]);
 
   // load audio when scene changes
   useEffect(() => {
@@ -42,8 +64,9 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    if (scene === 'none' || !sceneAudios[scene]) return undefined;
-    const audio = new Audio(sceneAudios[scene]);
+    const targetScene = scenes.find((s) => s.value === scene);
+    if (phase !== 'focus' || !targetScene || !targetScene.url || scene === 'none') return undefined;
+    const audio = new Audio(targetScene.url);
     audio.loop = true;
     audioRef.current = audio;
     if (running) {
@@ -52,7 +75,7 @@ export default function FocusPage({ isAdmin }) {
     return () => {
       audio.pause();
     };
-  }, [scene]);
+  }, [scene, phase]);
 
   useEffect(() => {
     if (!running) return;
@@ -72,16 +95,35 @@ export default function FocusPage({ isAdmin }) {
   // control audio play/pause with running state
   useEffect(() => {
     if (!audioRef.current) return;
-    if (running && scene !== 'none') {
+    if (running && scene !== 'none' && phase === 'focus') {
       audioRef.current.play().catch(() => {});
     } else {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-  }, [running, scene]);
+  }, [running, scene, phase]);
 
   const minutes = useMemo(() => String(Math.floor(remaining / 60)).padStart(2, '0'), [remaining]);
   const seconds = useMemo(() => String(remaining % 60).padStart(2, '0'), [remaining]);
+  const selectedScene = useMemo(() => scenes.find((s) => s.value === scene), [scenes, scene]);
+  const phaseLabel = phase === 'focus' ? '专注时间' : phase === 'shortBreak' ? '短休' : '长休';
+  const handleAdvancePhase = () => {
+    if (phase === 'focus') {
+      if (round >= 4) {
+        setPhase('longBreak');
+      } else {
+        setPhase('shortBreak');
+      }
+      return;
+    }
+    if (phase === 'shortBreak') {
+      setPhase('focus');
+      setRound((prev) => Math.min(prev + 1, 4));
+      return;
+    }
+    setPhase('focus');
+    setRound(1);
+  };
 
   const handleComplete = async () => {
     setRunning(false);
@@ -89,17 +131,19 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    try {
-      await api.post('/sessions/', {
-        task: selectedTask ? selectedTask.id : null,
-        duration_minutes: profile?.default_focus_minutes || 25,
-        is_completed: true,
-        interrupted_reason: '',
-      });
-    } catch (err) {
-      console.error(err);
+    if (phase === 'focus') {
+      try {
+        await api.post('/sessions/', {
+          task: selectedTask ? selectedTask.id : null,
+          duration_minutes: phaseDurations.focus,
+          is_completed: true,
+          interrupted_reason: '',
+        });
+      } catch (err) {
+        console.error(err);
+      }
     }
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
+    handleAdvancePhase();
   };
 
   const handleStop = async () => {
@@ -109,13 +153,16 @@ export default function FocusPage({ isAdmin }) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    await api.post('/sessions/', {
-      task: selectedTask ? selectedTask.id : null,
-      duration_minutes: Math.round((remaining / 60) * 10) / 10,
-      is_completed: false,
-      interrupted_reason: '手动结束',
-    });
-    setRemaining((profile?.default_focus_minutes || 25) * 60);
+    if (phase === 'focus') {
+      await api.post('/sessions/', {
+        task: selectedTask ? selectedTask.id : null,
+        duration_minutes: Math.round((remaining / 60) * 10) / 10,
+        is_completed: false,
+        interrupted_reason: '手动结束',
+      });
+    }
+    setPhase('focus');
+    setRound(1);
   };
 
   return (
@@ -139,16 +186,22 @@ export default function FocusPage({ isAdmin }) {
               {minutes}:{seconds}
             </div>
           </div>
+          <div className="text-center">
+            <p className="text-sm text-slate-500">{phaseLabel}</p>
+            <p className="text-lg font-semibold text-slate-900">第 {round}/4 个番茄</p>
+          </div>
           <div className="flex gap-3">
             {!running ? (
               <button
                 onClick={() => {
-                  setRemaining((profile?.default_focus_minutes || 25) * 60);
+                  if (remaining <= 0) {
+                    setRemaining(phaseDurations[phase] * 60);
+                  }
                   setRunning(true);
                 }}
                 className={`px-6 py-3 rounded-full text-white font-semibold shadow ${isAdmin ? 'bg-purple-500 hover:bg-purple-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
               >
-                开始专注
+                {phase === 'focus' ? '开始专注' : '开始休息'}
               </button>
             ) : (
               <>
@@ -187,12 +240,15 @@ export default function FocusPage({ isAdmin }) {
                 </option>
               ))}
             </select>
+            {phase !== 'focus' && (
+              <p className="text-xs text-slate-400 mt-2">休息阶段不计入番茄统计。</p>
+            )}
           </div>
           <div className="card p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500">环境音场景</p>
-                <p className="text-lg font-semibold text-slate-900">{scene}</p>
+                <p className="text-lg font-semibold text-slate-900">{selectedScene?.label || '无声'}</p>
               </div>
               <MusicalNoteIcon className="h-6 w-6 text-slate-400" />
             </div>
