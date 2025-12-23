@@ -17,6 +17,7 @@ Pop-Location
 Write-Host "[2/4] Install backend deps"
 Push-Location $BackendDir
 pip install -r requirements.txt
+pip install pyinstaller
 Pop-Location
 
 Write-Host "[3/4] Build launcher exe"

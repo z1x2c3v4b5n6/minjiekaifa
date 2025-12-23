@@ -28,6 +28,21 @@ from .serializers import (
 )
 
 
+def map_item_type(category: str, is_dead: bool) -> str:
+    mapping = {
+        "study": "tree",
+        "学习": "tree",
+        "work": "flower",
+        "工作": "flower",
+        "life": "stone",
+        "生活": "stone",
+    }
+    base = mapping.get((category or "").strip().lower(), "tree")
+    if is_dead:
+        return f"dead_{base}"
+    return base
+
+
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -138,13 +153,15 @@ class FocusSessionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         session = serializer.save(user=self.request.user)
         task = session.task
+        category = task.category if task else ""
+        item_type = map_item_type(category, not session.is_completed)
         GardenItem.objects.get_or_create(
             session=session,
             defaults={
                 "user": self.request.user,
                 "date": session.created_at.date() if session.created_at else timezone.now().date(),
-                "category": task.category if task else "",
-                "item_type": "focus",
+                "category": category,
+                "item_type": item_type,
                 "is_dead": not session.is_completed,
             },
         )
@@ -341,10 +358,43 @@ class GardenItemSummaryView(APIView):
         items = (
             GardenItem.objects.filter(user=request.user, date__gte=start_date, date__lte=end_date)
             .values("date")
-            .annotate(total=Count("id"), dead=Count("id", filter=models.Q(is_dead=True)))
+            .annotate(
+                total=Count("id"),
+                completed=Count("id", filter=models.Q(is_dead=False)),
+                aborted=Count("id", filter=models.Q(is_dead=True)),
+            )
             .order_by("date")
         )
-        return Response(items)
+        category_breakdown = (
+            GardenItem.objects.filter(user=request.user, date__gte=start_date, date__lte=end_date)
+            .values("date", "category")
+            .annotate(
+                total=Count("id"),
+                completed=Count("id", filter=models.Q(is_dead=False)),
+                aborted=Count("id", filter=models.Q(is_dead=True)),
+            )
+            .order_by("date")
+        )
+        summary_map = {entry["date"]: dict(entry, by_category={}) for entry in items}
+        for entry in category_breakdown:
+            date_key = entry["date"]
+            summary = summary_map.setdefault(
+                date_key,
+                {
+                    "date": date_key,
+                    "total": 0,
+                    "completed": 0,
+                    "aborted": 0,
+                    "by_category": {},
+                },
+            )
+            category_name = entry["category"] or "未分类"
+            summary["by_category"][category_name] = {
+                "total": entry["total"],
+                "completed": entry["completed"],
+                "aborted": entry["aborted"],
+            }
+        return Response([summary_map[key] for key in sorted(summary_map.keys())])
 
 
 class AdminOverviewView(APIView):
