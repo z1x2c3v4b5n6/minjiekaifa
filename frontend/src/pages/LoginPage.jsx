@@ -48,18 +48,16 @@ export default function LoginPage() {
     }
   };
 
-  const quickAccess = async (type) => {
-    const username = type === 'admin' ? 'admin_demo' : 'demo_user';
+  const quickUserAccess = async () => {
+    const username = 'demo_user';
     const password = 'timegarden123';
-    const nickname = type === 'admin' ? 'Admin 管理员' : '花园友人';
+    const nickname = '花园友人';
     setForm({ username, password, confirm: password, nickname });
     setMode('login');
-    if (type === 'user') {
-      try {
-        await api.post('/auth/register/', { username, password, nickname });
-      } catch (e) {
-        // ignore duplicate
-      }
+    try {
+      await api.post('/auth/register/', { username, password, nickname });
+    } catch (e) {
+      // ignore duplicate
     }
     try {
       const res = await api.post('/auth/login/', { username, password });
@@ -70,7 +68,7 @@ export default function LoginPage() {
         navigate('/');
       }
     } catch (err) {
-      setError(type === 'admin' ? '管理员账号不存在，请先预置管理员账号' : '快速登录失败，请手动注册');
+      setError('快速登录失败，请手动注册');
     }
   };
 
@@ -87,16 +85,10 @@ export default function LoginPage() {
             <p className="text-sm font-semibold">一键体验</p>
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => quickAccess('user')}
+                onClick={quickUserAccess}
                 className="w-full bg-white/90 text-emerald-700 font-semibold rounded-xl px-4 py-3 hover:bg-white"
               >
                 普通用户体验账号
-              </button>
-              <button
-                onClick={() => quickAccess('admin')}
-                className="w-full bg-white/90 text-indigo-700 font-semibold rounded-xl px-4 py-3 hover:bg-white"
-              >
-                管理员登录（需预置）
               </button>
             </div>
           </div>
