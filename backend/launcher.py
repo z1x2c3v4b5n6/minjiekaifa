@@ -50,9 +50,11 @@ def ensure_ambient_sounds(manifest):
     for entry in manifest:
         filename = entry.get("filename")
         name = entry.get("name") or filename
+        key = entry.get("key")
         if not filename:
             continue
-        key = slugify(Path(filename).stem) or Path(filename).stem
+        if not key:
+            key = slugify(Path(filename).stem) or Path(filename).stem
         sound, created = AmbientSound.objects.get_or_create(
             key=key,
             defaults={
