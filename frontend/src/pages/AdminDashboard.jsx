@@ -11,6 +11,8 @@ export default function AdminDashboard() {
     today_sessions: 0,
     top_scene: '',
     today_plan_users: 0,
+    today_active_users: 0,
+    today_interrupted_sessions: 0,
   });
   const [users, setUsers] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -22,51 +24,49 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <p className="text-sm text-slate-500">欢迎回来，管理员</p>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-            平台级仪表盘
-            <span className="text-xs px-3 py-1 rounded-full bg-purple-100 text-purple-700">ADMIN MODE</span>
-          </h1>
-          <p className="text-slate-500 mt-1">洞察全站数据，帮助用户更好地专注。</p>
+          <h1 className="text-3xl font-bold text-slate-900">平台概览</h1>
+          <p className="text-slate-500 mt-2">关注用户活跃与专注趋势，内容管理从顶部导航进入。</p>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
+      <section className="space-y-4">
+        <p className="text-xs font-semibold tracking-[0.18em] text-slate-400 uppercase">关键数据</p>
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
         <StatsCard
           title="今日番茄"
           value={`${overview.today_sessions} 次`}
-          sub="全站今日完成的专注次数"
           icon={<SparklesIcon className="h-6 w-6" />}
           accent="purple"
         />
         <StatsCard
           title="今日专注"
           value={`${overview.today_focus_minutes} 分钟`}
-          sub="全站今日专注总时长"
           icon={<ChartBarIcon className="h-6 w-6" />}
           accent="purple"
         />
         <StatsCard
           title="累计专注"
           value={`${overview.total_focus_minutes} 分钟`}
-          sub="历史总专注时长"
           icon={<SparklesIcon className="h-6 w-6" />}
           accent="purple"
         />
         <StatsCard
-          title="注册用户"
-          value={`${overview.total_users} 人`}
-          sub="平台累计用户数"
+          title="今日活跃用户"
+          value={`${overview.today_active_users} 人`}
           icon={<UsersIcon className="h-6 w-6" />}
           accent="purple"
         />
-      </div>
+        </div>
+      </section>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 card space-y-4">
+      <section className="space-y-4">
+        <p className="text-xs font-semibold tracking-[0.18em] text-slate-400 uppercase">运营概况</p>
+        <div className="grid lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2 card p-6 space-y-5">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <UsersIcon className="h-5 w-5 text-purple-500" /> 用户概览
@@ -86,10 +86,10 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
-            {!users.length && <p className="text-sm text-slate-500 py-4">暂无用户数据</p>}
+            {!users.length && <div className="py-12 text-center"><p className="text-sm font-medium text-slate-600">暂无活跃用户数据</p><p className="text-xs text-slate-400 mt-1">用户完成专注后将在这里展示</p></div>}
           </div>
         </div>
-        <div className="card space-y-3">
+        <div className="card p-6 space-y-4">
           <div className="flex items-center gap-2 text-purple-700">
             <MegaphoneIcon className="h-5 w-5" />
             <h2 className="text-lg font-semibold text-slate-900">公告</h2>
@@ -105,9 +105,12 @@ export default function AdminDashboard() {
           <div className="bg-slate-50 rounded-xl p-3 text-sm text-slate-600">
             <p>场景偏好：{overview.top_scene || '暂无数据'}</p>
             <p>今日计划任务的用户：{overview.today_plan_users} 人</p>
+            <p>今日中断专注：{overview.today_interrupted_sessions} 次</p>
+            <p>平台注册用户：{overview.total_users} 人</p>
           </div>
         </div>
-      </div>
+        </div>
+      </section>
     </div>
   );
 }

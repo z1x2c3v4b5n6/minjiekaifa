@@ -7,9 +7,9 @@ if not DATA_DIR.is_absolute():
     DATA_DIR = BASE_DIR / DATA_DIR
 STATIC_APP_DIR = Path(os.environ.get("TIMEGARDEN_STATIC_DIR", BASE_DIR / "static" / "app"))
 
-SECRET_KEY = 'dev-secret-key'
+SECRET_KEY = os.environ.get('TIMEGARDEN_SECRET_KEY', 'dev-only-change-me')
 DEBUG = os.environ.get("TIMEGARDEN_DEBUG", "true").lower() == "true"
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get("TIMEGARDEN_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -87,9 +87,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'auth': '20/minute',
+    },
 }
 
-# CORS 设置：允许本地前端访问
-CORS_ALLOW_ALL_ORIGINS = True
-# 如果想限制来源，可以改为：
-# CORS_ALLOWED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000']
+# 开发环境默认允许本地前端；生产环境通过环境变量显式配置来源。
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("TIMEGARDEN_CORS_ORIGINS", "").split(",") if origin.strip()]

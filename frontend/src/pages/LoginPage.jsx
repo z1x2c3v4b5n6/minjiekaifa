@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ username: '', password: '', confirm: '', nickname: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [quickLoading, setQuickLoading] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useContext(AuthContext);
@@ -23,12 +24,14 @@ export default function LoginPage() {
         return;
       }
       if (mode === 'register') {
-        // RegisterView 期望的字段：username、password，可选 nickname
-        await api.post('/auth/register/', {
+        const res = await api.post('/auth/register/', {
           username: form.username,
           password: form.password,
           nickname: form.nickname,
         });
+        login(res.data.token, res.data.user);
+        navigate('/');
+        return;
       }
       const res = await api.post('/auth/login/', {
         username: form.username,
@@ -42,58 +45,51 @@ export default function LoginPage() {
         navigate(redirect);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || '操作失败');
+      const data = err.response?.data;
+      setError(typeof data?.detail === 'string' ? data.detail : '无法连接服务器，请确认 Django 后端已在 8000 端口启动。');
     } finally {
       setLoading(false);
     }
   };
 
-  const quickUserAccess = async () => {
-    const username = 'demo_user';
-    const password = 'timegarden123';
-    const nickname = '花园友人';
-    setForm({ username, password, confirm: password, nickname });
-    setMode('login');
+  const quickAccess = async (account) => {
+    setQuickLoading(account.role);
+    setError('');
+    setForm({ username: account.username, password: account.password, confirm: '', nickname: '' });
     try {
-      await api.post('/auth/register/', { username, password, nickname });
-    } catch (e) {
-      // ignore duplicate
-    }
-    try {
-      const res = await api.post('/auth/login/', { username, password });
+      const res = await api.post('/auth/login/', { username: account.username, password: account.password });
       login(res.data.token, res.data.user);
-      if (res.data.user?.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/');
-      }
+      navigate(res.data.user?.role === 'admin' ? '/admin/dashboard' : '/');
     } catch (err) {
-      setError('快速登录失败，请手动注册');
+      setError('测试账号登录失败，请先在后端执行 py -3 manage.py migrate。');
+    } finally {
+      setQuickLoading('');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-sky-50 px-4">
-      <div className="card w-full max-w-5xl overflow-hidden grid md:grid-cols-5">
-        <div className="md:col-span-2 bg-gradient-to-br from-emerald-400 to-sky-500 text-white p-8 flex flex-col justify-between">
+    <div className="login-viewport">
+      <div className="login-panel">
+        <aside className="login-brand">
           <div className="space-y-4">
-            <p className="text-sm uppercase tracking-[0.2em]">TimeGarden</p>
-            <h1 className="text-3xl font-bold">时光花园</h1>
-            <p className="text-white/90 leading-relaxed">专注每一刻，把时间种成小小花园。番茄是种子，专注是阳光。</p>
+            <div className="login-logo">TG</div>
+            <p className="text-xs uppercase tracking-[0.28em] text-white/75">TimeGarden</p>
+            <h1 className="text-4xl font-bold tracking-tight">种下时间，<br />收获专注。</h1>
+            <p className="text-white/80 leading-relaxed text-sm">规划今天的任务，完成一轮专注，让每一分钟在花园里留下痕迹。</p>
           </div>
-          <div className="space-y-3">
-            <p className="text-sm font-semibold">一键体验</p>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={quickUserAccess}
-                className="w-full bg-white/90 text-emerald-700 font-semibold rounded-xl px-4 py-3 hover:bg-white"
-              >
-                普通用户体验账号
+          {import.meta.env.DEV && <div className="space-y-3">
+            <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">测试账号</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => quickAccess({ username: 'demo_user', password: 'timegarden123', role: 'user' })} disabled={quickLoading} className="login-demo-button">
+                <span>普通用户</span><small>demo_user</small>
+              </button>
+              <button onClick={() => quickAccess({ username: 'demo_admin', password: 'admin123456', role: 'admin' })} disabled={quickLoading} className="login-demo-button">
+                <span>管理员</span><small>demo_admin</small>
               </button>
             </div>
-          </div>
-        </div>
-        <div className="md:col-span-3 p-8 bg-white">
+          </div>}
+        </aside>
+        <main className="login-form-side">
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-sm text-slate-500">欢迎回来</p>
@@ -169,8 +165,10 @@ export default function LoginPage() {
               {loading ? '处理中...' : mode === 'login' ? '登录' : '注册'}
             </button>
           </form>
-          <p className="text-xs text-slate-400 mt-4">管理员账号需由运维使用 create_admin 命令预置。</p>
-        </div>
+          {import.meta.env.DEV && <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-500 leading-relaxed">
+            普通用户：demo_user / timegarden123<br />管理员：demo_admin / admin123456
+          </div>}
+        </main>
       </div>
     </div>
   );

@@ -1,0 +1,15 @@
+services:
+  app:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      TIMEGARDEN_DEBUG: "false"
+      TIMEGARDEN_SECRET_KEY: "change-this-before-production"
+      TIMEGARDEN_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      TIMEGARDEN_DATA_DIR: "/data"
+    volumes:
+      - timegarden_data:/data
+
+volumes:
+  timegarden_data:

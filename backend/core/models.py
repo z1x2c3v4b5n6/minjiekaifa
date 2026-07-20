@@ -39,6 +39,7 @@ class Task(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tasks")
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="subtasks")
     title = models.CharField(max_length=200)
     category = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="todo")
@@ -52,7 +53,12 @@ class Task(models.Model):
     )
     deadline = models.DateField(null=True, blank=True)
     is_today = models.BooleanField(default=False)
+    scheduled_date = models.DateField(null=True, blank=True)
     estimated_pomodoros = models.IntegerField(null=True, blank=True)
+    completed_pomodoros = models.PositiveIntegerField(default=0)
+    actual_focus_minutes = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    rollover_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -67,9 +73,22 @@ class FocusSession(models.Model):
     duration_minutes = models.DecimalField(max_digits=6, decimal_places=2)
     is_completed = models.BooleanField(default=True)
     interrupted_reason = models.CharField(max_length=200, blank=True)
+    interruption_type = models.CharField(max_length=30, blank=True)
+    focus_quality = models.PositiveSmallIntegerField(null=True, blank=True)
+    pause_count = models.PositiveIntegerField(default=0)
+    client_session_id = models.CharField(max_length=64, blank=True, db_index=True)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "client_session_id"],
+                condition=~models.Q(client_session_id=""),
+                name="unique_user_client_session",
+            )
+        ]
 
     def __str__(self):
         return f"{self.user.username} - {self.duration_minutes}m"
@@ -108,12 +127,32 @@ class MoodRecord(models.Model):
         return f"{self.user.username} {self.date} {self.mood}"
 
 
+class DailyReview(models.Model):
+    """每日复盘，为下一天的计划提供可执行反馈。"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="daily_reviews")
+    date = models.DateField(default=timezone.now)
+    achievement = models.TextField(blank=True)
+    blocker = models.CharField(max_length=40, blank=True)
+    reflection = models.TextField(blank=True)
+    tomorrow_priority = models.CharField(max_length=200, blank=True)
+    planned_pomodoros = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "date"], name="unique_daily_review")]
+        ordering = ["-date"]
+
+
 class Announcement(models.Model):
     """系统公告，仅管理员可管理"""
 
     title = models.CharField(max_length=200)
     content = models.TextField()
     is_published = models.BooleanField(default=False)
+    is_important = models.BooleanField(default=False)
+    expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -121,6 +160,15 @@ class Announcement(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class AnnouncementRead(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="announcement_reads")
+    announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE, related_name="read_records")
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "announcement"], name="unique_announcement_read")]
 
 
 class AmbientSound(models.Model):

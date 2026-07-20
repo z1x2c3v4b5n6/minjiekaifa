@@ -10,6 +10,7 @@
 
 body {
   min-height: 100vh;
+  margin: 0;
 }
 
 a {
@@ -29,4 +30,54 @@ a {
 
 .page-shell {
   @apply max-w-6xl mx-auto px-4 py-6 md:py-10;
+}
+
+.admin-page-shell {
+  @apply max-w-7xl mx-auto px-8 py-12;
+}
+
+.login-viewport {
+  min-height: 100vh;
+  min-width: 760px;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  overflow: auto;
+  background: radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.14), transparent 32%),
+    radial-gradient(circle at 88% 80%, rgba(14, 165, 233, 0.14), transparent 30%), #f8fafc;
+}
+
+.login-panel {
+  width: min(960px, calc(100vw - 64px));
+  min-width: 696px;
+  height: 600px;
+  display: grid;
+  grid-template-columns: 40% 60%;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 28px;
+  background: white;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.13);
+}
+
+.login-brand {
+  @apply text-white p-10 flex flex-col justify-between;
+  background: linear-gradient(155deg, #059669 0%, #0d9488 48%, #0284c7 100%);
+}
+
+.login-logo {
+  @apply w-12 h-12 rounded-2xl bg-white/15 border border-white/20 grid place-items-center font-bold mb-7;
+  backdrop-filter: blur(10px);
+}
+
+.login-demo-button {
+  @apply rounded-xl bg-white/10 border border-white/20 px-3 py-3 text-left hover:bg-white/20 disabled:opacity-60 transition;
+}
+
+.login-demo-button span, .login-demo-button small { display: block; }
+.login-demo-button span { @apply text-sm font-semibold; }
+.login-demo-button small { @apply text-[10px] text-white/65 mt-1; }
+
+.login-form-side {
+  @apply p-10 bg-white flex flex-col justify-center;
 }

@@ -12,6 +12,7 @@ import AdminAnnouncements from './pages/AdminAnnouncements.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminSounds from './pages/AdminSounds.jsx';
 import api from './api.js';
+import GlobalFocusIndicator from './components/GlobalFocusIndicator.jsx';
 
 export const AuthContext = createContext(null);
 
@@ -26,9 +27,10 @@ function ProtectedLayout({ isAdmin, onLogout }) {
   return (
     <div className={`min-h-screen ${isAdmin ? 'bg-gradient-to-br from-indigo-50 via-purple-50 to-emerald-50' : 'bg-gradient-to-br from-sky-50 via-emerald-50 to-white'}`}>
       <Navbar isAdmin={isAdmin} role={role} profile={profile} onLogout={onLogout} />
-      <div className="page-shell">
+      <div className={isAdmin ? 'admin-page-shell' : 'page-shell'}>
         <Outlet />
       </div>
+      <GlobalFocusIndicator />
     </div>
   );
 }
